@@ -378,6 +378,49 @@ app.use(`${BASE}/materias`, materiasRoutes);
 
 ---
 
+## CRUD de Materias
+
+Endpoints disponibles bajo `/api/v1/materias`. Todos requieren JWT.
+
+| Método | Ruta | Rol requerido | Descripción |
+|---|---|---|---|
+| GET | `/materias` | Cualquiera | Listar con paginación y filtro |
+| GET | `/materias/:id` | Cualquiera | Obtener por ID |
+| POST | `/materias` | ADMIN, DOCENTE | Crear materia |
+| PUT | `/materias/:id` | ADMIN, DOCENTE | Actualizar materia |
+| DELETE | `/materias/:id` | ADMIN | Eliminar materia |
+
+### Parámetros de paginación (GET /materias)
+
+| Parámetro | Tipo | Default | Descripción |
+|---|---|---|---|
+| `page` | integer | 0 | Número de página (inicia en 0) |
+| `size` | integer | 10 | Elementos por página (máx. 100) |
+| `nombre` | string | — | Filtro parcial por nombre |
+
+### Ejemplo de respuesta exitosa (GET /materias)
+
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 3,
+  "totalPages": 1,
+  "content": [
+    { "id_materia": 1, "clave_materia": "PROG-01", "nombre_materia": "Programación Web" }
+  ]
+}
+```
+
+### Archivos involucrados
+
+```
+src/
+├── services/materias.service.js      ← lógica y consultas a BD
+├── controllers/materias.controller.js ← manejo de request/response
+└── routes/materias.routes.js         ← definición de rutas y permisos
+```
+
 ## Estrategia de ramas y commits
 
 ### Ramas
