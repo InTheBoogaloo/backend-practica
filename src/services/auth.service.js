@@ -12,10 +12,9 @@ const db     = require('../config/db');
 async function login(username, password) {
   // 1. Buscar usuario activo
   const [rows] = await db.query(
-    `SELECT u.id_usuario, u.username, u.password, r.nombre AS rol
+    `SELECT u.id_usuario, u.username, u.password_hash as password, u.rol AS rol
        FROM usuarios u
-       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.username = ? AND u.activo = 1
+      WHERE u.username= ? AND u.activo = 1
       LIMIT 1`,
     [username]
   );
@@ -31,7 +30,7 @@ async function login(username, password) {
   // 2. Comparar password con hash bcrypt
   const coincide = await bcrypt.compare(password, usuario.password);
   if (!coincide) {
-    const err = new Error('Credenciales inválidas');
+    const err = new Error('Credenciales inválidas por contraseña');
     err.status = 401;
     throw err;
   }

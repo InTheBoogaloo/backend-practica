@@ -11,14 +11,7 @@ const bcrypt = require('bcryptjs');
 const db     = require('../config/db');
 
 const usuarios = [
-  { username: 'admin01',   password: 'password123' },
-  { username: 'docente01', password: 'password123' },
-  { username: 'docente02', password: 'password123' },
-  { username: 'alumno01',  password: 'password123' },
-  { username: 'alumno02',  password: 'password123' },
-  { username: 'alumno03',  password: 'password123' },
-  { username: 'alumno04',  password: 'password123' },
-  { username: 'alumno05',  password: 'password123' },
+  { username: 'admin', password: 'password123' },
 ];
 
 async function seed() {
@@ -26,14 +19,19 @@ async function seed() {
 
   for (const u of usuarios) {
     const hash = await bcrypt.hash(u.password, 10);
-    await db.query(
-      'UPDATE usuarios SET password = ? WHERE username = ?',
+    const [result] = await db.query(
+      'UPDATE usuarios SET password_hash = ? WHERE username = ?',
       [hash, u.username]
     );
-    console.log(`✅  ${u.username}  →  hash generado`);
+
+    if (result.affectedRows === 0) {
+      console.log(`⚠️   ${u.username}  →  no encontrado en la BD`);
+    } else {
+      console.log(`✅  ${u.username}  →  hash generado`);
+    }
   }
 
-  console.log('\n✔  Todos los passwords actualizados.');
+  console.log('\n✔  Listo.');
   process.exit(0);
 }
 
