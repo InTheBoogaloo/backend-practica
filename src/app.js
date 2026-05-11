@@ -3,6 +3,7 @@ require('dotenv').config();
 const express    = require('express');
 const cors       = require('cors');
 const authRoutes = require('./routes/auth.routes');
+const materiasRoutes       = require('./routes/materias.routes');
 const errorHandler = require('./middlewares/errorHandler');
 const { verifyToken } = require('./middlewares/auth.middleware');
 
@@ -25,6 +26,9 @@ app.use(verifyToken);
 // TODO: agregar aquí las demás rutas cuando las implementen
 // const materiasRoutes = require('./routes/materias.routes');
 // app.use(`${BASE}/materias`, materiasRoutes);
+
+// Materias  — GET libre, POST/PUT: ADMIN|DOCENTE, DELETE: ADMIN
+app.use(`${BASE}/materias`, materiasRoutes);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
