@@ -22,9 +22,8 @@ app.use(`${BASE}/auth`, authRoutes);
 // A partir de aquí TODOS los endpoints requieren JWT
 app.use(verifyToken);
 
-// TODO: agregar aquí las demás rutas cuando las implementen
-// const materiasRoutes = require('./routes/materias.routes');
-// app.use(`${BASE}/materias`, materiasRoutes);
+const materiasRoutes = require('./routes/materias.routes');
+app.use(`${BASE}/materias`, materiasRoutes);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
