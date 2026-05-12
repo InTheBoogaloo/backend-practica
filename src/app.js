@@ -25,6 +25,9 @@ app.use(verifyToken);
 const materiasRoutes = require('./routes/materias.routes');
 app.use(`${BASE}/materias`, materiasRoutes);
 
+const evaluacionesRoutes = require('./routes/evaluaciones.routes');
+app.use(`${BASE}/evaluaciones`, evaluacionesRoutes);
+
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
