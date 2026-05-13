@@ -1,57 +1,67 @@
 const db = require('../config/db');
 
-async function crear({ id_grupo, nombre_equipo, id_alumno_creador, id_alumnos }) {
-  // 1. Verificar que el grupo existe
+// ─── CREAR ───────────────────────────────────────────────
+async function crear({ id_grupo, nombre_equipo, id_alumno_creador, id_alumnos = [] }) {
+  // asegurar array
+  const alumnos = Array.isArray(id_alumnos) ? id_alumnos : [];
+
+  // incluir creador siempre
+  const todosLosAlumnos = [...new Set([id_alumno_creador, ...alumnos])];
+
+  // 1. grupo existe
   const [grupos] = await db.query(
     'SELECT id_grupo FROM grupos WHERE id_grupo = ? AND activo = 1',
     [id_grupo]
   );
+
   if (grupos.length === 0) {
     const err = new Error(`El grupo con id ${id_grupo} no existe`);
     err.status = 404;
     throw err;
   }
 
-  // 2. Verificar que el nombre no esté duplicado en el mismo grupo
+  // 2. duplicado equipo
   const [dup] = await db.query(
     'SELECT id_equipo FROM equipos WHERE id_grupo = ? AND nombre_equipo = ? AND activo = 1',
     [id_grupo, nombre_equipo]
   );
+
   if (dup.length > 0) {
     const err = new Error(`Ya existe un equipo con el nombre ${nombre_equipo} en este grupo`);
     err.status = 409;
     throw err;
   }
 
-  // 3. Verificar que el alumno creador existe
+  // 3. creador existe
   const [creador] = await db.query(
     'SELECT id_alumno FROM alumnos WHERE id_alumno = ? AND activo = 1',
     [id_alumno_creador]
   );
+
   if (creador.length === 0) {
     const err = new Error(`El alumno con id ${id_alumno_creador} no existe`);
     err.status = 404;
     throw err;
   }
 
-  // 4. Verificar que todos los alumnos existen
-  for (const id of id_alumnos) {
-    const [alumno] = await db.query(
-      'SELECT id_alumno FROM alumnos WHERE id_alumno = ? AND activo = 1',
-      [id]
+  // 4. validar alumnos en batch (MEJOR QUE LOOP)
+  if (alumnos.length > 0) {
+    const [existentes] = await db.query(
+      `SELECT id_alumno FROM alumnos
+       WHERE id_alumno IN (?) AND activo = 1`,
+      [alumnos]
     );
-    if (alumno.length === 0) {
-      const err = new Error(`El alumno con id ${id} no existe`);
+
+    if (existentes.length !== alumnos.length) {
+      const err = new Error(`Uno o más alumnos no existen`);
       err.status = 404;
       throw err;
     }
   }
 
-  // 5. Asegurarse de que el creador esté en la lista
-  const todosLosAlumnos = [...new Set([id_alumno_creador, ...id_alumnos])];
-
-  // 6. Insertar en transacción
+  // 5. transacción
   const conn = await db.getConnection();
+
   try {
     await conn.beginTransaction();
 
@@ -62,16 +72,22 @@ async function crear({ id_grupo, nombre_equipo, id_alumno_creador, id_alumnos })
 
     const id_equipo = equipoResult.insertId;
 
-    for (const id_alumno of todosLosAlumnos) {
-      const es_lider = id_alumno === id_alumno_creador ? 1 : 0;
-      await conn.query(
-        'INSERT INTO alumnos_equipos (id_alumno, id_equipo, es_lider) VALUES (?, ?, ?)',
-        [id_alumno, id_equipo, es_lider]
-      );
-    }
+    // INSERT masivo (MEJOR RENDIMIENTO)
+    const values = todosLosAlumnos.map(id => [
+      id,
+      id_equipo,
+      id === id_alumno_creador ? 1 : 0
+    ]);
+
+    await conn.query(
+      'INSERT INTO alumnos_equipos (id_alumno, id_equipo, es_lider) VALUES ?',
+      [values]
+    );
 
     await conn.commit();
+
     return obtenerPorId(id_equipo);
+
   } catch (err) {
     await conn.rollback();
     throw err;
@@ -80,6 +96,7 @@ async function crear({ id_grupo, nombre_equipo, id_alumno_creador, id_alumnos })
   }
 }
 
+// ─── LISTAR ───────────────────────────────────────────────
 async function listar({ id_grupo }) {
   let query = `
     SELECT e.id_equipo, e.nombre_equipo, e.id_grupo, g.nombre_grupo,
@@ -89,6 +106,7 @@ async function listar({ id_grupo }) {
       LEFT JOIN alumnos_equipos ae ON ae.id_equipo = e.id_equipo
      WHERE e.activo = 1
   `;
+
   const params = [];
 
   if (id_grupo) {
@@ -102,6 +120,7 @@ async function listar({ id_grupo }) {
   return rows;
 }
 
+// ─── OBTENER POR ID ───────────────────────────────────────
 async function obtenerPorId(id_equipo) {
   const [equipos] = await db.query(
     `SELECT e.id_equipo, e.nombre_equipo, e.id_grupo, g.nombre_grupo
@@ -128,4 +147,4 @@ async function obtenerPorId(id_equipo) {
   return { ...equipos[0], integrantes };
 }
 
-module.exports = { crear, listar };
+module.exports = { crear, listar, obtenerPorId };

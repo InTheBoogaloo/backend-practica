@@ -1,47 +1,65 @@
 const db = require('../config/db');
 
-// ─── Listar (paginado + filtro por nombre) ────────────────────
+// ─── LISTAR ─────────────────────────────────────────────
 async function listar({ page = 0, size = 10, nombre = '' }) {
-  const offset = parseInt(page) * parseInt(size);
-  const limit  = parseInt(size);
-  const like   = `%${nombre}%`;
+  const pageNum = Number.isFinite(+page) ? Math.max(0, +page) : 0;
+  const sizeNum = Number.isFinite(+size) ? Math.min(100, +size) : 10;
 
-  const [[{ total }]] = await db.query(
+  const offset = pageNum * sizeNum;
+  const limit = sizeNum;
+
+  const like = `%${(nombre || '').toString()}%`;
+
+  // ── COUNT ─────────────────────────────
+  const [[countRow]] = await db.query(
     `SELECT COUNT(*) AS total
-       FROM materias
-      WHERE nombre_materia LIKE ? AND activo = 1`,
+     FROM materias
+     WHERE activo = 1
+     AND nombre_materia LIKE ?`,
     [like]
   );
 
+  const total = countRow?.total || 0;
+
+  // ── DATA ──────────────────────────────
   const [rows] = await db.query(
     `SELECT id_materia, clave_materia, nombre_materia
-       FROM materias
-      WHERE nombre_materia LIKE ? AND activo = 1
-      ORDER BY id_materia ASC
-      LIMIT ? OFFSET ?`,
+     FROM materias
+     WHERE activo = 1
+     AND nombre_materia LIKE ?
+     ORDER BY id_materia ASC
+     LIMIT ? OFFSET ?`,
     [like, limit, offset]
   );
 
   return {
-    page:          parseInt(page),
-    size:          limit,
+    page: pageNum,
+    size: sizeNum,
     totalElements: total,
-    totalPages:    Math.ceil(total / limit),
-    content:       rows,
+    totalPages: Math.ceil(total / sizeNum),
+    content: rows || [],
   };
 }
 
-// ─── Obtener por ID ───────────────────────────────────────────
+// ─── OBTENER ─────────────────────────────────────────────
 async function obtenerPorId(id) {
+  const idNum = Number(id);
+
+  if (!Number.isFinite(idNum)) {
+    const err = new Error('ID inválido');
+    err.status = 400;
+    throw err;
+  }
+
   const [rows] = await db.query(
     `SELECT id_materia, clave_materia, nombre_materia
-       FROM materias
-      WHERE id_materia = ? AND activo = 1
-      LIMIT 1`,
-    [id]
+     FROM materias
+     WHERE id_materia = ? AND activo = 1
+     LIMIT 1`,
+    [idNum]
   );
 
-  if (rows.length === 0) {
+  if (!rows.length) {
     const err = new Error(`La materia con id ${id} no existe`);
     err.status = 404;
     throw err;
@@ -50,82 +68,78 @@ async function obtenerPorId(id) {
   return rows[0];
 }
 
-// ─── Crear ────────────────────────────────────────────────────
+// ─── CREAR ──────────────────────────────────────────────
 async function crear({ clave_materia, nombre_materia }) {
-  // Verificar duplicado de clave
-  const [porClave] = await db.query(
-    'SELECT id_materia FROM materias WHERE clave_materia = ? LIMIT 1',
-    [clave_materia]
-  );
-  if (porClave.length > 0) {
-    const err = new Error(`Ya existe una materia con la clave ${clave_materia}`);
-    err.status = 409;
+  if (!clave_materia || !nombre_materia) {
+    const err = new Error('Datos incompletos');
+    err.status = 400;
     throw err;
   }
 
-  // Verificar duplicado de nombre
-  const [porNombre] = await db.query(
-    'SELECT id_materia FROM materias WHERE nombre_materia = ? LIMIT 1',
-    [nombre_materia]
+  const [dup] = await db.query(
+    `SELECT id_materia FROM materias
+     WHERE clave_materia = ? OR nombre_materia = ?
+     LIMIT 1`,
+    [clave_materia, nombre_materia]
   );
-  if (porNombre.length > 0) {
-    const err = new Error(`Ya existe una materia con el nombre ${nombre_materia}`);
+
+  if (dup.length > 0) {
+    const err = new Error('Materia duplicada');
     err.status = 409;
     throw err;
   }
 
   const [result] = await db.query(
-    'INSERT INTO materias (clave_materia, nombre_materia) VALUES (?, ?)',
+    `INSERT INTO materias (clave_materia, nombre_materia)
+     VALUES (?, ?)`,
     [clave_materia, nombre_materia]
   );
 
   return obtenerPorId(result.insertId);
 }
 
-// ─── Actualizar ───────────────────────────────────────────────
+// ─── ACTUALIZAR ─────────────────────────────────────────
 async function actualizar(id, { clave_materia, nombre_materia }) {
-  // Verificar que existe
-  await obtenerPorId(id);
+  const materia = await obtenerPorId(id);
 
-  // Verificar duplicado de clave (excluyendo la misma materia)
-  const [porClave] = await db.query(
-    'SELECT id_materia FROM materias WHERE clave_materia = ? AND id_materia != ? LIMIT 1',
-    [clave_materia, id]
+  const [dup] = await db.query(
+    `SELECT id_materia FROM materias
+     WHERE (clave_materia = ? OR nombre_materia = ?)
+     AND id_materia != ?
+     LIMIT 1`,
+    [clave_materia, nombre_materia, id]
   );
-  if (porClave.length > 0) {
-    const err = new Error(`Ya existe una materia con la clave ${clave_materia}`);
-    err.status = 409;
-    throw err;
-  }
 
-  // Verificar duplicado de nombre (excluyendo la misma materia)
-  const [porNombre] = await db.query(
-    'SELECT id_materia FROM materias WHERE nombre_materia = ? AND id_materia != ? LIMIT 1',
-    [nombre_materia, id]
-  );
-  if (porNombre.length > 0) {
-    const err = new Error(`Ya existe una materia con el nombre ${nombre_materia}`);
+  if (dup.length > 0) {
+    const err = new Error('Conflicto: duplicado');
     err.status = 409;
     throw err;
   }
 
   await db.query(
-    'UPDATE materias SET clave_materia = ?, nombre_materia = ? WHERE id_materia = ?',
+    `UPDATE materias
+     SET clave_materia = ?, nombre_materia = ?
+     WHERE id_materia = ?`,
     [clave_materia, nombre_materia, id]
   );
 
   return obtenerPorId(id);
 }
 
-// ─── Eliminar (soft delete) ───────────────────────────────────
+// ─── ELIMINAR ───────────────────────────────────────────
 async function eliminar(id) {
-  // Verificar que existe
   await obtenerPorId(id);
 
   await db.query(
-    'UPDATE materias SET activo = 0 WHERE id_materia = ?',
+    `UPDATE materias SET activo = 0 WHERE id_materia = ?`,
     [id]
   );
 }
 
-module.exports = { listar, obtenerPorId, crear, actualizar, eliminar };
+module.exports = {
+  listar,
+  obtenerPorId,
+  crear,
+  actualizar,
+  eliminar
+};
