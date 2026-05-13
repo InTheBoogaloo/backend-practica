@@ -1,41 +1,38 @@
 require('dotenv').config();
-
 const express    = require('express');
 const cors       = require('cors');
-const authRoutes = require('./routes/auth.routes');
-const errorHandler = require('./middlewares/errorHandler');
+
+const authRoutes         = require('./routes/auth.routes');
+const materiasRoutes     = require('./routes/materias.routes');
+const alumnosRoutes      = require('./routes/alumnos.routes');
+const gruposRoutes       = require('./routes/grupos.routes');
+const evaluacionesRoutes = require('./routes/evaluaciones.routes');
+const equiposRoutes      = require('./routes/equipos.routes');
+const exposicionesRoutes = require('./routes/exposiciones.routes');
+
+const errorHandler    = require('./middlewares/errorHandler');
 const { verifyToken } = require('./middlewares/auth.middleware');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
+const BASE = '/api/v1';
 
 // ─── Middlewares globales ─────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
-// ─── Rutas ───────────────────────────────────────────────────
-const BASE = '/api/v1';
-
-// Auth — sin JWT
+// ─── Rutas públicas (sin JWT) ─────────────────────────────────
 app.use(`${BASE}/auth`, authRoutes);
 
-// A partir de aquí TODOS los endpoints requieren JWT
+// ─── JWT requerido a partir de aquí ──────────────────────────
 app.use(verifyToken);
 
-const materiasRoutes = require('./routes/materias.routes');
-const alumnosRoutes  = require('./routes/alumnos.routes');
-const gruposRoutes   = require('./routes/grupos.routes');
-
-app.use(`${BASE}/materias`, materiasRoutes);
-app.use(`${BASE}/alumnos`,  alumnosRoutes);
-app.use(`${BASE}/grupos`,   gruposRoutes);
-
-const evaluacionesRoutes = require('./routes/evaluaciones.routes');
+app.use(`${BASE}/materias`,     materiasRoutes);
+app.use(`${BASE}/alumnos`,      alumnosRoutes);
+app.use(`${BASE}/grupos`,       gruposRoutes);
 app.use(`${BASE}/evaluaciones`, evaluacionesRoutes);
-
-
-const equiposRoutes = require('./routes/equipos.routes');
-app.use(`${BASE}/equipos`, equiposRoutes);
+app.use(`${BASE}/equipos`,      equiposRoutes);
+app.use(`${BASE}/exposiciones`, exposicionesRoutes);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
