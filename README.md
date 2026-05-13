@@ -526,3 +526,485 @@ Formato: `MAYOR.MENOR.PARCHE`
 | Cambio que rompe compatibilidad con el frontend | `v2.0.0` |
 | Nueva funcionalidad sin romper nada | `v1.1.0` |
 | Corrección de bug | `v1.0.1` |
+
+###mas documentacion
+
+> **Autenticación:** Todos los endpoints (excepto `/auth/login`) requieren JWT en el header:
+> `Authorization: Bearer <token>`
+
+---
+
+## 🔐 Auth
+
+### `POST /api/v1/auth/login`
+Autentica un usuario y devuelve un token JWT.
+
+- **Auth requerida:** No
+- **Body:**
+  ```json
+  {
+    "username": "a2024001",
+    "password": "contraseña"
+  }
+  ```
+- **Respuesta `200`:**
+  ```json
+  {
+    "token": "<jwt_token>",
+    "tipo": "Bearer",
+    "expira_en": 3600
+  }
+  ```
+- **Errores:**
+  - `401` — Credenciales inválidas (usuario no existe o contraseña incorrecta)
+
+> **Nota:** El `username` de alumnos es su matrícula en minúsculas (ej. `a2024001`). El token incluye `sub` (id_usuario), `username` y `rol`.
+
+---
+
+## 👩‍🎓 Alumnos
+
+Base: `/api/v1/alumnos`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista alumnos (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene alumno por ID |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea alumno + usuario vinculado |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza datos del alumno |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete del alumno |
+
+---
+
+### `GET /api/v1/alumnos`
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre, apellido o matrícula |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 42,
+  "totalPages": 5,
+  "content": [
+    {
+      "id_alumno": 1,
+      "matricula": "A2024001",
+      "nombre": "Juan",
+      "apellido_pat": "Pérez",
+      "apellido_mat": "García",
+      "email": "juan@ejemplo.com"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/v1/alumnos/:id`
+**Respuesta `200`:**
+```json
+{
+  "id_alumno": 1,
+  "matricula": "A2024001",
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "juan@ejemplo.com"
+}
+```
+- **Errores:** `404` — Alumno no encontrado o inactivo
+
+---
+
+### `POST /api/v1/alumnos`
+Crea el alumno **y** su usuario del sistema en una transacción. El `username` del usuario se genera automáticamente como la matrícula en minúsculas.
+
+**Body:**
+```json
+{
+  "matricula": "A2024001",
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "juan@ejemplo.com",
+  "password": "contraseña"
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `matricula` | ✅ | Única en el sistema |
+| `nombre` | ✅ | |
+| `apellido_pat` | ✅ | |
+| `apellido_mat` | ❌ | |
+| `email` | ✅ | Único en el sistema |
+| `password` | ✅ | Se almacena con bcrypt |
+
+**Respuesta `201`:** Objeto del alumno creado (misma forma que `GET /:id`).
+
+- **Errores:** `409` — Matrícula, email o username ya existente
+
+---
+
+### `PUT /api/v1/alumnos/:id`
+**Body:**
+```json
+{
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "nuevo@ejemplo.com"
+}
+```
+> La matrícula no se puede modificar.
+
+**Respuesta `200`:** Alumno actualizado.
+- **Errores:** `404` alumno no encontrado, `409` email duplicado
+
+---
+
+### `DELETE /api/v1/alumnos/:id`
+Soft delete: pone `activo = 0` en `alumnos` y en su registro de `usuarios`.
+
+**Respuesta `200`:** Sin cuerpo.
+- **Errores:** `404` — Alumno no encontrado
+
+---
+
+## 📖 Materias
+
+Base: `/api/v1/materias`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista materias (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene materia por ID |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea materia |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza materia |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete de materia |
+
+---
+
+### `GET /api/v1/materias`
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre de materia |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 7,
+  "totalPages": 1,
+  "content": [
+    {
+      "id_materia": 1,
+      "clave_materia": "MAT101",
+      "nombre_materia": "Matemáticas Discretas"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/v1/materias/:id`
+**Respuesta `200`:**
+```json
+{
+  "id_materia": 1,
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+- **Errores:** `404` — Materia no encontrada o inactiva
+
+---
+
+### `POST /api/v1/materias`
+**Body:**
+```json
+{
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+
+**Respuesta `201`:** Materia creada.
+- **Errores:** `409` — Clave o nombre ya existente
+
+---
+
+### `PUT /api/v1/materias/:id`
+**Body:**
+```json
+{
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+**Respuesta `200`:** Materia actualizada.
+- **Errores:** `404` no encontrada, `409` clave o nombre duplicado
+
+---
+
+### `DELETE /api/v1/materias/:id`
+Soft delete (`activo = 0`).
+
+**Respuesta `200`:** Sin cuerpo.
+- **Errores:** `404` — Materia no encontrada
+
+---
+
+## 👥 Grupos
+
+Base: `/api/v1/grupos`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista grupos (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene grupo con alumnos inscritos |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea grupo |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza grupo |
+| `POST` | `/:id/alumnos` | `ADMIN`, `DOCENTE` | Inscribe alumno al grupo |
+| `DELETE` | `/:id/alumnos/:id_alumno` | `ADMIN`, `DOCENTE` | Quita alumno del grupo |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete del grupo |
+
+---
+
+### `GET /api/v1/grupos`
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre de grupo |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 3,
+  "totalPages": 1,
+  "content": [
+    {
+      "id_grupo": 1,
+      "nombre_grupo": "Grupo A",
+      "semestre": "2024-1",
+      "id_materia": 1,
+      "nombre_materia": "Matemáticas Discretas"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/v1/grupos/:id`
+Incluye el listado de alumnos inscritos en el grupo.
+
+**Respuesta `200`:**
+```json
+{
+  "id_grupo": 1,
+  "nombre_grupo": "Grupo A",
+  "semestre": "2024-1",
+  "id_materia": 1,
+  "nombre_materia": "Matemáticas Discretas",
+  "alumnos": [
+    {
+      "id_alumno": 1,
+      "matricula": "A2024001",
+      "nombre": "Juan",
+      "apellido_pat": "Pérez",
+      "email": "juan@ejemplo.com",
+      "fecha_inscripcion": "2024-01-15"
+    }
+  ]
+}
+```
+- **Errores:** `404` — Grupo no encontrado o inactivo
+
+---
+
+### `POST /api/v1/grupos`
+**Body:**
+```json
+{
+  "nombre_grupo": "Grupo A",
+  "semestre": "2024-1",
+  "id_materia": 1
+}
+```
+
+**Respuesta `201`:** Grupo creado (misma forma que `GET /:id`, con `alumnos: []`).
+- **Errores:** `404` materia no encontrada, `409` grupo duplicado (mismo nombre + materia + semestre)
+
+---
+
+### `PUT /api/v1/grupos/:id`
+**Body:**
+```json
+{
+  "nombre_grupo": "Grupo B",
+  "semestre": "2024-2",
+  "id_materia": 2
+}
+```
+**Respuesta `200`:** Grupo actualizado.
+- **Errores:** `404` grupo o materia no encontrados, `409` combinación duplicada
+
+---
+
+### `POST /api/v1/grupos/:id/alumnos`
+**Body:**
+```json
+{
+  "id_alumno": 5
+}
+```
+**Respuesta `200`:** Grupo completo con la lista de alumnos actualizada.
+- **Errores:** `404` grupo o alumno no encontrado, `409` alumno ya inscrito
+
+---
+
+### `DELETE /api/v1/grupos/:id/alumnos/:id_alumno`
+**Respuesta `200`:** Sin cuerpo.
+- **Errores:** `404` — Grupo no encontrado o alumno no inscrito en ese grupo
+
+---
+
+### `DELETE /api/v1/grupos/:id`
+Soft delete (`activo = 0`).
+
+**Respuesta `200`:** Sin cuerpo.
+- **Errores:** `404` — Grupo no encontrado
+
+---
+
+## 📝 Evaluaciones
+
+Base: `/api/v1/evaluaciones`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `POST` | `/` | `ALUMNO` | Registra evaluación de una exposición |
+
+---
+
+### `POST /api/v1/evaluaciones`
+Registra la evaluación de un alumno sobre una exposición, calificando cada criterio de la rúbrica asociada. La `calificacion_total` es calculada automáticamente por un trigger en la base de datos como promedio ponderado de los criterios.
+
+**Body:**
+```json
+{
+  "id_exposicion": 3,
+  "id_alumno_evaluador": 1,
+  "detalles": [
+    { "id_criterio": 1, "calificacion": 8.5 },
+    { "id_criterio": 2, "calificacion": 9.0 },
+    { "id_criterio": 3, "calificacion": 7.5 }
+  ]
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `id_exposicion` | ✅ | Debe existir y estar activa |
+| `id_alumno_evaluador` | ✅ | Debe existir y estar activo |
+| `detalles` | ✅ | Array con **todos** los criterios de la rúbrica de la exposición |
+| `detalles[].id_criterio` | ✅ | Debe pertenecer a la rúbrica de esa exposición |
+| `detalles[].calificacion` | ✅ | Valor entre `0.00` y `10.00` |
+
+**Respuesta `201`:**
+```json
+{
+  "id_evaluacion": 10,
+  "id_exposicion": 3,
+  "id_alumno_evaluador": 1,
+  "calificacion_total": 8.42,
+  "creado_en": "2026-05-12T10:00:00.000Z",
+  "detalles": [
+    { "id_criterio": 1, "nombre_criterio": "Claridad", "calificacion": 8.5 },
+    { "id_criterio": 2, "nombre_criterio": "Contenido", "calificacion": 9.0 },
+    { "id_criterio": 3, "nombre_criterio": "Presentación", "calificacion": 7.5 }
+  ]
+}
+```
+
+- **Errores:**
+  - `400` — Faltan criterios, criterios ajenos a la rúbrica, o criterios repetidos
+  - `404` — Exposición o alumno no encontrado
+  - `409` — El alumno ya evaluó esa exposición
+
+---
+
+## 🏥 Health Check
+
+### `GET /api/v1/health`
+- **Auth requerida:** No
+- **Respuesta `200`:**
+  ```json
+  {
+    "status": "ok",
+    "timestamp": "2026-05-12T10:00:00.000Z"
+  }
+  ```
+
+---
+
+## ❌ Respuestas de error comunes
+
+| Código | Causa |
+|--------|-------|
+| `400` | Datos inválidos o incompletos (ej. criterios faltantes en evaluación) |
+| `401` | Token JWT ausente, expirado o inválido |
+| `403` | El rol del usuario no tiene permiso para esta acción |
+| `404` | Recurso no encontrado o inactivo |
+| `409` | Conflicto — registro duplicado (matrícula, email, clave, etc.) |
+| `500` | Error interno del servidor |
+
+**Formato `404` de ruta no encontrada:**
+```json
+{
+  "timestamp": "2026-05-12T10:00:00.000Z",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Ruta GET /api/v1/inexistente no encontrada",
+  "path": "/api/v1/inexistente"
+}
+```
+
+---
+
+## 🔑 Roles del sistema
+
+| Rol | Permisos |
+|-----|----------|
+| `ADMIN` | Acceso total: lectura, escritura y eliminación en todos los recursos |
+| `DOCENTE` | Lectura y escritura en alumnos, materias y grupos; sin eliminar |
+| `ALUMNO` | Solo puede registrar evaluaciones de exposiciones |
+
+> Los usuarios con rol `ALUMNO` tienen un registro vinculado en la tabla `alumnos` via `id_alumno`. Su `username` es la matrícula en minúsculas.
+
+---
+
+## 🗄️ Notas de base de datos
+
+- Todos los deletes son **soft delete** (`activo = 0`), los registros no se borran físicamente.
+- La `calificacion_total` de las evaluaciones la recalcula automáticamente el trigger `trg_recalcular_total` como promedio ponderado de `evaluacion_detalles × criterios.ponderacion`.
+- La combinación `(id_exposicion, id_alumno_evaluador)` es única: un alumno solo puede evaluar una exposición una vez.
