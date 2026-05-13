@@ -42,20 +42,6 @@ function verifyToken(req, res, next) {
  */
 function requireRol(...roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.rol)) {
-      return res.status(403).json({
-        timestamp: new Date().toISOString(),
-        status:    403,
-        error:     'Forbidden',
-        message:   `Acceso restringido a: ${roles.join(', ')}`,
-        path:      req.originalUrl,
-      });
-    }
-    next();
-  };
-}
-function requireRol(...roles) {
-  return (req, res, next) => {
     console.log('req.user:', req.user);
     console.log('roles requeridos:', roles);
     if (!req.user || !roles.includes(req.user.rol)) {
