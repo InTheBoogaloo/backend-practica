@@ -6,46 +6,59 @@ async function registrar({
   id_alumno_evaluador,
   detalles = []
 }) {
-  const conn = await db.getConnection();
+
+  const client = await db.connect();
 
   try {
+
     // ── 1. Exposición ───────────────────────────────
-    const [expos] = await conn.query(
-      `SELECT id_exposicion, id_rubrica
+    const expos = await client.query(
+      `SELECT
+          id_exposicion,
+          id_rubrica
        FROM exposiciones
-       WHERE id_exposicion = ? AND activo = 1`,
+       WHERE id_exposicion = $1
+         AND activo = true`,
       [id_exposicion]
     );
 
-    if (expos.length === 0) {
-      const err = new Error(`La exposición con id ${id_exposicion} no existe`);
+    if (expos.rows.length === 0) {
+      const err = new Error(
+        `La exposición con id ${id_exposicion} no existe`
+      );
       err.status = 404;
       throw err;
     }
 
-    const { id_rubrica } = expos[0];
+    const { id_rubrica } = expos.rows[0];
 
     // ── 2. Alumno ───────────────────────────────────
-    const [alumnos] = await conn.query(
-      'SELECT id_alumno FROM alumnos WHERE id_alumno = ? AND activo = 1',
+    const alumnos = await client.query(
+      `SELECT id_alumno
+       FROM alumnos
+       WHERE id_alumno = $1
+         AND activo = true`,
       [id_alumno_evaluador]
     );
 
-    if (alumnos.length === 0) {
-      const err = new Error(`El alumno con id ${id_alumno_evaluador} no existe`);
+    if (alumnos.rows.length === 0) {
+      const err = new Error(
+        `El alumno con id ${id_alumno_evaluador} no existe`
+      );
       err.status = 404;
       throw err;
     }
 
     // ── 3. Evaluación duplicada ─────────────────────
-    const [dup] = await conn.query(
+    const dup = await client.query(
       `SELECT id_evaluacion
        FROM evaluaciones
-       WHERE id_exposicion = ? AND id_alumno_evaluador = ?`,
+       WHERE id_exposicion = $1
+         AND id_alumno_evaluador = $2`,
       [id_exposicion, id_alumno_evaluador]
     );
 
-    if (dup.length > 0) {
+    if (dup.rows.length > 0) {
       const err = new Error(
         `El alumno ${id_alumno_evaluador} ya evaluó esta exposición`
       );
@@ -54,27 +67,41 @@ async function registrar({
     }
 
     // ── 4. Criterios ────────────────────────────────
-    const [criterios] = await conn.query(
+    const criterios = await client.query(
       `SELECT id_criterio
        FROM criterios
-       WHERE id_rubrica = ? AND activo = 1`,
+       WHERE id_rubrica = $1
+         AND activo = true`,
       [id_rubrica]
     );
 
-    if (criterios.length === 0) {
-      const err = new Error('La rúbrica no tiene criterios');
+    if (criterios.rows.length === 0) {
+      const err = new Error(
+        'La rúbrica no tiene criterios'
+      );
       err.status = 400;
       throw err;
     }
 
     // ── 5. Validación segura de detalles ────────────
-    const safeDetalles = Array.isArray(detalles) ? detalles : [];
+    const safeDetalles = Array.isArray(detalles)
+      ? detalles
+      : [];
 
-    const criterioIds = new Set(criterios.map(c => c.id_criterio));
-    const detalleIds = safeDetalles.map(d => d.id_criterio);
+    const criterioIds = new Set(
+      criterios.rows.map(c => c.id_criterio)
+    );
+
+    const detalleIds = safeDetalles.map(
+      d => d.id_criterio
+    );
+
     const detalleSet = new Set(detalleIds);
 
-    const ajenos = detalleIds.filter(id => !criterioIds.has(id));
+    const ajenos = detalleIds.filter(
+      id => !criterioIds.has(id)
+    );
+
     if (ajenos.length > 0) {
       const err = new Error(
         `Criterios inválidos: [${ajenos.join(', ')}]`
@@ -83,7 +110,10 @@ async function registrar({
       throw err;
     }
 
-    const faltantes = [...criterioIds].filter(id => !detalleSet.has(id));
+    const faltantes = [...criterioIds].filter(
+      id => !detalleSet.has(id)
+    );
+
     if (faltantes.length > 0) {
       const err = new Error(
         `Faltan criterios: [${faltantes.join(', ')}]`
@@ -93,73 +123,109 @@ async function registrar({
     }
 
     if (detalleIds.length !== detalleSet.size) {
-      const err = new Error('No se permiten criterios duplicados');
+      const err = new Error(
+        'No se permiten criterios duplicados'
+      );
       err.status = 400;
       throw err;
     }
 
     // ── 6. TRANSACCIÓN ──────────────────────────────
-    await conn.beginTransaction();
+    await client.query('BEGIN');
 
-    const [evalResult] = await conn.query(
-      `INSERT INTO evaluaciones (id_exposicion, id_alumno_evaluador)
-       VALUES (?, ?)`,
-      [id_exposicion, id_alumno_evaluador]
+    const evalResult = await client.query(
+      `INSERT INTO evaluaciones (
+          id_exposicion,
+          id_alumno_evaluador
+       )
+       VALUES ($1, $2)
+       RETURNING id_evaluacion`,
+      [
+        id_exposicion,
+        id_alumno_evaluador
+      ]
     );
 
-    const id_evaluacion = evalResult.insertId;
+    const id_evaluacion =
+      evalResult.rows[0].id_evaluacion;
 
-    // INSERT MASIVO (MEJOR QUE LOOP)
-    const values = safeDetalles.map(d => [
-      id_evaluacion,
-      d.id_criterio,
-      d.calificacion
-    ]);
+    // INSERT detalles
+    for (const d of safeDetalles) {
 
-    await conn.query(
-      `INSERT INTO evaluacion_detalles
-       (id_evaluacion, id_criterio, calificacion)
-       VALUES ?`,
-      [values]
-    );
+      await client.query(
+        `INSERT INTO evaluacion_detalles (
+            id_evaluacion,
+            id_criterio,
+            calificacion
+         )
+         VALUES ($1, $2, $3)`,
+        [
+          id_evaluacion,
+          d.id_criterio,
+          d.calificacion
+        ]
+      );
 
-    await conn.commit();
+    }
+
+    await client.query('COMMIT');
 
     return obtenerPorId(id_evaluacion);
 
   } catch (err) {
-    await conn.rollback();
+
+    await client.query('ROLLBACK');
     throw err;
+
   } finally {
-    conn.release();
+
+    client.release();
+
   }
 }
 
 // ─── OBTENER POR ID ─────────────────────────────────────
 async function obtenerPorId(id_evaluacion) {
-  const [evals] = await db.query(
-    `SELECT id_evaluacion, id_exposicion, id_alumno_evaluador,
-            calificacion_total, creado_en
+
+  const evals = await db.query(
+    `SELECT
+        id_evaluacion,
+        id_exposicion,
+        id_alumno_evaluador,
+        calificacion_total,
+        creado_en
      FROM evaluaciones
-     WHERE id_evaluacion = ?`,
+     WHERE id_evaluacion = $1`,
     [id_evaluacion]
   );
 
-  if (evals.length === 0) {
-    const err = new Error(`La evaluación con id ${id_evaluacion} no existe`);
+  if (evals.rows.length === 0) {
+    const err = new Error(
+      `La evaluación con id ${id_evaluacion} no existe`
+    );
     err.status = 404;
     throw err;
   }
 
-  const [detalles] = await db.query(
-    `SELECT ed.id_criterio, c.nombre_criterio, ed.calificacion
+  const detalles = await db.query(
+    `SELECT
+        ed.id_criterio,
+        c.nombre_criterio,
+        ed.calificacion
      FROM evaluacion_detalles ed
-     JOIN criterios c ON c.id_criterio = ed.id_criterio
-     WHERE ed.id_evaluacion = ?`,
+     JOIN criterios c
+       ON c.id_criterio = ed.id_criterio
+     WHERE ed.id_evaluacion = $1`,
     [id_evaluacion]
   );
 
-  return { ...evals[0], detalles };
+  return {
+    ...evals.rows[0],
+    detalles: detalles.rows
+  };
 }
 
-module.exports = { registrar, obtenerPorId };
+module.exports = {
+  registrar,
+  obtenerPorId
+};
