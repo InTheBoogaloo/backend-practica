@@ -375,6 +375,90 @@ Agrega estas líneas en `src/app.js` debajo de donde dice `TODO`:
 const materiasRoutes = require('./routes/materias.routes');
 app.use(`${BASE}/materias`, materiasRoutes);
 ```
+## Registro de Evaluaciones
+
+Endpoint disponible bajo `/api/v1/evaluaciones`. Requiere JWT.
+
+| Método | Ruta | Rol requerido | Descripción |
+|---|---|---|---|
+| POST | `/evaluaciones` | ALUMNO | Registrar evaluación con rúbrica |
+
+### Body requerido (POST /evaluaciones)
+
+```json
+{
+  "id_exposicion": 1,
+  "id_alumno_evaluador": 1,
+  "detalles": [
+    { "id_criterio": 1, "calificacion": 9.0 },
+    { "id_criterio": 2, "calificacion": 8.5 },
+    { "id_criterio": 3, "calificacion": 8.0 }
+  ]
+}
+```
+
+> La `calificacion_total` no se envía, la calcula automáticamente un trigger en la base de datos.
+
+### Validaciones aplicadas
+
+- La exposición debe existir
+- El alumno evaluador debe existir
+- No se permiten evaluaciones duplicadas (mismo evaluador + exposición)
+- Los criterios enviados deben pertenecer a la rúbrica de la exposición
+- Se debe enviar exactamente un detalle por cada criterio de la rúbrica
+- Cada calificación debe estar entre 0 y 10
+
+### Archivos involucrados
+
+src/
+├── services/evaluaciones.service.js       ← lógica y consultas a BD
+├── controllers/evaluaciones.controller.js ← manejo de request/response
+└── routes/evaluaciones.routes.js          ← definición de rutas y permisos
+
+---
+
+## Equipos
+
+Endpoints disponibles bajo `/api/v1/equipos`. Requieren JWT.
+
+| Método | Ruta | Rol requerido | Descripción |
+|---|---|---|---|
+| GET | `/equipos` | Cualquiera | Listar equipos existentes |
+| POST | `/equipos` | ALUMNO | Crear equipo con integrantes |
+
+### Body requerido (POST /equipos)
+
+```json
+{
+  "id_grupo": 1,
+  "nombre_equipo": "Equipo Alpha",
+  "id_alumno_creador": 1,
+  "id_alumnos": [2, 3]
+}
+```
+
+> El alumno creador queda registrado automáticamente como líder del equipo.
+> No es necesario incluir al creador en `id_alumnos`, se agrega solo.
+
+### Parámetros de filtro (GET /equipos)
+
+| Parámetro | Tipo | Descripción |
+|---|---|---|
+| `id_grupo` | integer | Filtrar equipos por grupo |
+
+### Validaciones aplicadas
+
+- El grupo debe existir
+- El nombre del equipo no puede repetirse dentro del mismo grupo
+- El alumno creador debe existir
+- Todos los alumnos en `id_alumnos` deben existir
+- `nombre_equipo` debe tener entre 3 y 100 caracteres
+
+### Archivos involucrados
+src/
+├── services/equipos.service.js       ← lógica y consultas a BD
+├── controllers/equipos.controller.js ← manejo de request/response
+└── routes/equipos.routes.js          ← definición de rutas y permisos
 
 ---
 
