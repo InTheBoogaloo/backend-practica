@@ -8,17 +8,21 @@ Stack: **Node.js · Express · MySQL2 · JWT · bcryptjs**
 ## Tabla de contenidos
 
 1. [Requisitos previos](#requisitos-previos)
-2. [Clonar el repositorio](#clonar-el-repositorio)
-3. [Instalar dependencias](#instalar-dependencias)
-4. [Configurar variables de entorno](#configurar-variables-de-entorno)
-5. [Configurar la base de datos](#configurar-la-base-de-datos)
-6. [Generar passwords de prueba](#generar-passwords-de-prueba)
-7. [Arrancar el servidor](#arrancar-el-servidor)
-8. [Probar el login](#probar-el-login)
-9. [Usuarios de prueba](#usuarios-de-prueba)
-10. [Estructura del proyecto](#estructura-del-proyecto)
-11. [Cómo agregar nuevos endpoints](#cómo-agregar-nuevos-endpoints)
-12. [Estrategia de ramas y commits](#estrategia-de-ramas-y-commits)
+2. [Puesta en marcha](#puesta-en-marcha)
+3. [Estructura del proyecto](#estructura-del-proyecto)
+4. [Cómo agregar nuevos endpoints](#cómo-agregar-nuevos-endpoints)
+5. [Referencia de la API](#referencia-de-la-api)
+   - [Autenticación](#autenticación)
+   - [Alumnos](#alumnos)
+   - [Materias](#materias)
+   - [Grupos](#grupos)
+   - [Equipos](#equipos)
+   - [Evaluaciones](#evaluaciones)
+   - [Health Check](#health-check)
+6. [Roles del sistema](#roles-del-sistema)
+7. [Respuestas de error comunes](#respuestas-de-error-comunes)
+8. [Notas de base de datos](#notas-de-base-de-datos)
+9. [Estrategia de ramas y commits](#estrategia-de-ramas-y-commits)
 
 ---
 
@@ -29,7 +33,7 @@ Asegúrate de tener instalado:
 - [Node.js](https://nodejs.org/) v18 o superior
 - [MySQL](https://dev.mysql.com/downloads/) 8.0 o superior (o MariaDB 10.6+)
 - [Git](https://git-scm.com/)
-- [Thunder Client](https://www.thunderclient.com/) (extensión VS Code) o [Postman](https://www.postman.com/) para testear
+- [Thunder Client](https://www.thunderclient.com/) (extensión VS Code) o [Postman](https://www.postman.com/) para testear endpoints
 
 Verifica tus versiones:
 
@@ -41,25 +45,23 @@ mysql --version
 
 ---
 
-## Clonar el repositorio
+## Puesta en marcha
+
+### 1. Clonar el repositorio
 
 ```bash
 git clone https://github.com/tu-org/exposiciones-backend.git
 cd exposiciones-backend
 ```
 
----
-
-## Instalar dependencias
+### 2. Instalar dependencias
 
 ```bash
 npm install
 ```
 
-Esto instala:
-
-| Paquete | Para qué sirve |
-|---|---|
+| Paquete | Propósito |
+|---------|-----------|
 | `express` | Framework del servidor |
 | `mysql2` | Conexión a MySQL con soporte async/await |
 | `jsonwebtoken` | Generar y verificar tokens JWT |
@@ -68,17 +70,13 @@ Esto instala:
 | `cors` | Permitir peticiones desde el frontend |
 | `nodemon` | Reiniciar el servidor automáticamente en desarrollo |
 
----
-
-## Configurar variables de entorno
+### 3. Configurar variables de entorno
 
 Copia el archivo de ejemplo y edítalo con tus datos:
 
 ```bash
 cp .env.example .env
 ```
-
-Abre `.env` y rellena los valores:
 
 ```env
 PORT=8080
@@ -93,13 +91,9 @@ JWT_SECRET=pon_aqui_una_clave_larga_y_segura_de_al_menos_32_caracteres
 JWT_EXPIRES_IN=3600
 ```
 
-> ⚠️ **Importante:** Nunca subas el archivo `.env` al repositorio. Ya está incluido en `.gitignore`.
+> **Importante:** Nunca subas el archivo `.env` al repositorio. Ya está incluido en `.gitignore`.
 
----
-
-## Configurar la base de datos
-
-### 1. Crear la base de datos
+### 4. Configurar la base de datos
 
 Ejecuta el archivo SQL desde la raíz del proyecto:
 
@@ -107,15 +101,13 @@ Ejecuta el archivo SQL desde la raíz del proyecto:
 mysql -u root -p < exposiciones_db.sql
 ```
 
-Ingresa tu password de MySQL cuando lo pida. Esto crea la base de datos `exposiciones_db` con todas las tablas y datos de prueba.
-
-### 2. Verificar que se creó correctamente
+Ingresa tu password de MySQL cuando lo pida. Esto crea la base de datos `exposiciones_db` con todas las tablas y datos de prueba. Para verificar:
 
 ```bash
 mysql -u root -p -e "USE exposiciones_db; SHOW TABLES;"
 ```
 
-Debes ver algo como:
+Debes ver:
 
 ```
 +---------------------------+
@@ -137,12 +129,9 @@ Debes ver algo como:
 +---------------------------+
 ```
 
----
+### 5. Generar passwords de prueba
 
-## Generar passwords de prueba
-
-El SQL inserta usuarios con hashes ficticios. Este script los reemplaza con hashes bcrypt reales.  
-**Ejecútalo una sola vez**, justo después de cargar el SQL:
+El SQL inserta usuarios con hashes ficticios. Este script los reemplaza con hashes bcrypt reales. **Ejecútalo una sola vez**, justo después de cargar el SQL:
 
 ```bash
 node src/utils/seed-passwords.js
@@ -153,25 +142,23 @@ Salida esperada:
 ```
 Generando hashes y actualizando BD...
 
-✅  admin01    →  hash generado
-✅  docente01  →  hash generado
-✅  docente02  →  hash generado
-✅  alumno01   →  hash generado
-✅  alumno02   →  hash generado
-✅  alumno03   →  hash generado
-✅  alumno04   →  hash generado
-✅  alumno05   →  hash generado
+  admin01    →  hash generado
+  docente01  →  hash generado
+  docente02  →  hash generado
+  alumno01   →  hash generado
+  alumno02   →  hash generado
+  alumno03   →  hash generado
+  alumno04   →  hash generado
+  alumno05   →  hash generado
 
-✔  Todos los passwords actualizados.
+Todos los passwords actualizados.
 ```
 
-> Si lo ejecutas más de una vez no hay problema, simplemente regenera los hashes.
+> Si lo ejecutas más de una vez no hay problema; simplemente regenera los hashes.
 
----
+### 6. Arrancar el servidor
 
-## Arrancar el servidor
-
-**Modo desarrollo** (se reinicia solo al guardar cambios):
+**Modo desarrollo** (se reinicia al guardar cambios):
 
 ```bash
 npm run dev
@@ -186,90 +173,15 @@ npm start
 Salida esperada:
 
 ```
-🚀  Servidor corriendo en http://localhost:8080/api/v1
+Servidor corriendo en http://localhost:8080/api/v1
 ```
 
----
-
-## Probar el login
-
-### Con Thunder Client o Postman
-
-Crea una petición con estos datos:
-
-| Campo | Valor |
-|---|---|
-| Método | `POST` |
-| URL | `http://localhost:8080/api/v1/auth/login` |
-| Header | `Content-Type: application/json` |
-
-Body (JSON):
-
-```json
-{
-  "username": "docente01",
-  "password": "password123"
-}
-```
-
-**Respuesta exitosa (200):**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "tipo": "Bearer",
-  "expira_en": 3600
-}
-```
-
-**Respuesta con credenciales incorrectas (401):**
-
-```json
-{
-  "timestamp": "2025-06-10T14:30:00.000Z",
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Credenciales inválidas",
-  "path": "/api/v1/auth/login"
-}
-```
-
-### Con curl (terminal)
-
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"docente01","password":"password123"}'
-```
-
-### Probar una ruta protegida con el token
-
-Copia el token de la respuesta anterior y úsalo en el header `Authorization`:
-
-```bash
-curl http://localhost:8080/api/v1/health \
-  -H "Authorization: Bearer TU_TOKEN_AQUI"
-```
-
-**Respuesta esperada (200):**
-
-```json
-{
-  "status": "ok",
-  "timestamp": "2025-06-10T14:30:00.000Z"
-}
-```
-
-Sin token (o con token inválido) recibirás un `401`.
-
----
-
-## Usuarios de prueba
+### Usuarios de prueba
 
 Todos usan el password `password123`.
 
 | username | rol | acceso |
-|---|---|---|
+|----------|-----|--------|
 | `admin01` | ADMIN | Todo, incluyendo DELETE |
 | `docente01` | DOCENTE | POST y PUT en materias |
 | `docente02` | DOCENTE | POST y PUT en materias |
@@ -288,7 +200,7 @@ exposiciones-backend/
 ├── README.md
 ├── exposiciones_db.sql           ← Script SQL de la base de datos
 └── src/
-    ├── app.js                    ← Entry point, configura Express y rutas
+    ├── app.js                    ← Entry point; configura Express y rutas
     ├── config/
     │   └── db.js                 ← Pool de conexión a MySQL
     ├── controllers/
@@ -308,11 +220,11 @@ exposiciones-backend/
 
 ## Cómo agregar nuevos endpoints
 
-Sigue siempre este patrón de 3 archivos. Se muestra el ejemplo con materias:
+Sigue el patrón de tres archivos. El ejemplo usa el recurso `materias`:
 
 ### 1. Servicio (`src/services/materias.service.js`)
 
-Aquí va la lógica de negocio y las consultas a la base de datos.
+Lógica de negocio y consultas a la base de datos.
 
 ```js
 const db = require('../config/db');
@@ -332,7 +244,7 @@ module.exports = { listar };
 
 ### 2. Controlador (`src/controllers/materias.controller.js`)
 
-Aquí se manejan los requests y responses HTTP.
+Manejo de requests y responses HTTP.
 
 ```js
 const materiasService = require('../services/materias.service');
@@ -375,59 +287,413 @@ Agrega estas líneas en `src/app.js` debajo de donde dice `TODO`:
 const materiasRoutes = require('./routes/materias.routes');
 app.use(`${BASE}/materias`, materiasRoutes);
 ```
-## Registro de Evaluaciones
 
-Endpoint disponible bajo `/api/v1/evaluaciones`. Requiere JWT.
+---
 
-| Método | Ruta | Rol requerido | Descripción |
-|---|---|---|---|
-| POST | `/evaluaciones` | ALUMNO | Registrar evaluación con rúbrica |
+## Referencia de la API
 
-### Body requerido (POST /evaluaciones)
+Todos los endpoints (excepto `/auth/login` y `/health`) requieren JWT en el header:
 
+```
+Authorization: Bearer <token>
+```
+
+---
+
+### Autenticación
+
+#### `POST /api/v1/auth/login`
+
+Autentica un usuario y devuelve un token JWT. No requiere autenticación previa.
+
+**Body:**
 ```json
 {
-  "id_exposicion": 1,
-  "id_alumno_evaluador": 1,
-  "detalles": [
-    { "id_criterio": 1, "calificacion": 9.0 },
-    { "id_criterio": 2, "calificacion": 8.5 },
-    { "id_criterio": 3, "calificacion": 8.0 }
+  "username": "a2024001",
+  "password": "contraseña"
+}
+```
+
+**Respuesta `200`:**
+```json
+{
+  "token": "<jwt_token>",
+  "tipo": "Bearer",
+  "expira_en": 3600
+}
+```
+
+**Errores:**
+- `401` — Credenciales inválidas (usuario no existe o contraseña incorrecta)
+
+> El `username` de los alumnos es su matrícula en minúsculas (ej. `a2024001`). El token incluye `sub` (id_usuario), `username` y `rol`.
+
+Para probar con curl:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"docente01","password":"password123"}'
+```
+
+---
+
+### Alumnos
+
+Base: `/api/v1/alumnos`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista alumnos (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene alumno por ID |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea alumno y usuario vinculado |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza datos del alumno |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete del alumno |
+
+#### `GET /api/v1/alumnos`
+
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre, apellido o matrícula |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 42,
+  "totalPages": 5,
+  "content": [
+    {
+      "id_alumno": 1,
+      "matricula": "A2024001",
+      "nombre": "Juan",
+      "apellido_pat": "Pérez",
+      "apellido_mat": "García",
+      "email": "juan@ejemplo.com"
+    }
   ]
 }
 ```
 
-> La `calificacion_total` no se envía, la calcula automáticamente un trigger en la base de datos.
+#### `GET /api/v1/alumnos/:id`
 
-### Validaciones aplicadas
+**Respuesta `200`:**
+```json
+{
+  "id_alumno": 1,
+  "matricula": "A2024001",
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "juan@ejemplo.com"
+}
+```
 
-- La exposición debe existir
-- El alumno evaluador debe existir
-- No se permiten evaluaciones duplicadas (mismo evaluador + exposición)
-- Los criterios enviados deben pertenecer a la rúbrica de la exposición
-- Se debe enviar exactamente un detalle por cada criterio de la rúbrica
-- Cada calificación debe estar entre 0 y 10
+- **Errores:** `404` — Alumno no encontrado o inactivo
 
-### Archivos involucrados
+#### `POST /api/v1/alumnos`
 
-src/
-├── services/evaluaciones.service.js       ← lógica y consultas a BD
-├── controllers/evaluaciones.controller.js ← manejo de request/response
-└── routes/evaluaciones.routes.js          ← definición de rutas y permisos
+Crea el alumno y su usuario del sistema en una transacción. El `username` se genera automáticamente como la matrícula en minúsculas.
+
+**Body:**
+```json
+{
+  "matricula": "A2024001",
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "juan@ejemplo.com",
+  "password": "contraseña"
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `matricula` | Sí | Única en el sistema |
+| `nombre` | Sí | |
+| `apellido_pat` | Sí | |
+| `apellido_mat` | No | |
+| `email` | Sí | Único en el sistema |
+| `password` | Sí | Se almacena con bcrypt |
+
+**Respuesta `201`:** Objeto del alumno creado (misma forma que `GET /:id`).
+
+- **Errores:** `409` — Matrícula, email o username ya existente
+
+#### `PUT /api/v1/alumnos/:id`
+
+**Body:**
+```json
+{
+  "nombre": "Juan",
+  "apellido_pat": "Pérez",
+  "apellido_mat": "García",
+  "email": "nuevo@ejemplo.com"
+}
+```
+
+> La matrícula no se puede modificar.
+
+**Respuesta `200`:** Alumno actualizado.
+
+- **Errores:** `404` alumno no encontrado, `409` email duplicado
+
+#### `DELETE /api/v1/alumnos/:id`
+
+Soft delete: establece `activo = 0` en `alumnos` y en el registro de `usuarios` vinculado.
+
+**Respuesta `200`:** Sin cuerpo.
+
+- **Errores:** `404` — Alumno no encontrado
 
 ---
 
-## Equipos
+### Materias
 
-Endpoints disponibles bajo `/api/v1/equipos`. Requieren JWT.
+Base: `/api/v1/materias`
 
-| Método | Ruta | Rol requerido | Descripción |
-|---|---|---|---|
-| GET | `/equipos` | Cualquiera | Listar equipos existentes |
-| POST | `/equipos` | ALUMNO | Crear equipo con integrantes |
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista materias (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene materia por ID |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea materia |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza materia |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete de materia |
 
-### Body requerido (POST /equipos)
+#### `GET /api/v1/materias`
 
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre de materia |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 7,
+  "totalPages": 1,
+  "content": [
+    {
+      "id_materia": 1,
+      "clave_materia": "MAT101",
+      "nombre_materia": "Matemáticas Discretas"
+    }
+  ]
+}
+```
+
+#### `GET /api/v1/materias/:id`
+
+**Respuesta `200`:**
+```json
+{
+  "id_materia": 1,
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+
+- **Errores:** `404` — Materia no encontrada o inactiva
+
+#### `POST /api/v1/materias`
+
+**Body:**
+```json
+{
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+
+**Respuesta `201`:** Materia creada.
+
+- **Errores:** `409` — Clave o nombre ya existente
+
+#### `PUT /api/v1/materias/:id`
+
+**Body:**
+```json
+{
+  "clave_materia": "MAT101",
+  "nombre_materia": "Matemáticas Discretas"
+}
+```
+
+**Respuesta `200`:** Materia actualizada.
+
+- **Errores:** `404` no encontrada, `409` clave o nombre duplicado
+
+#### `DELETE /api/v1/materias/:id`
+
+Soft delete (`activo = 0`).
+
+**Respuesta `200`:** Sin cuerpo.
+
+- **Errores:** `404` — Materia no encontrada
+
+---
+
+### Grupos
+
+Base: `/api/v1/grupos`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista grupos (paginado) |
+| `GET` | `/:id` | Cualquier usuario | Obtiene grupo con alumnos inscritos |
+| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea grupo |
+| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza grupo |
+| `POST` | `/:id/alumnos` | `ADMIN`, `DOCENTE` | Inscribe alumno al grupo |
+| `DELETE` | `/:id/alumnos/:id_alumno` | `ADMIN`, `DOCENTE` | Quita alumno del grupo |
+| `DELETE` | `/:id` | `ADMIN` | Soft delete del grupo |
+
+#### `GET /api/v1/grupos`
+
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtra por nombre de grupo |
+
+**Respuesta `200`:**
+```json
+{
+  "page": 0,
+  "size": 10,
+  "totalElements": 3,
+  "totalPages": 1,
+  "content": [
+    {
+      "id_grupo": 1,
+      "nombre_grupo": "Grupo A",
+      "semestre": "2024-1",
+      "id_materia": 1,
+      "nombre_materia": "Matemáticas Discretas"
+    }
+  ]
+}
+```
+
+#### `GET /api/v1/grupos/:id`
+
+Incluye el listado de alumnos inscritos en el grupo.
+
+**Respuesta `200`:**
+```json
+{
+  "id_grupo": 1,
+  "nombre_grupo": "Grupo A",
+  "semestre": "2024-1",
+  "id_materia": 1,
+  "nombre_materia": "Matemáticas Discretas",
+  "alumnos": [
+    {
+      "id_alumno": 1,
+      "matricula": "A2024001",
+      "nombre": "Juan",
+      "apellido_pat": "Pérez",
+      "email": "juan@ejemplo.com",
+      "fecha_inscripcion": "2024-01-15"
+    }
+  ]
+}
+```
+
+- **Errores:** `404` — Grupo no encontrado o inactivo
+
+#### `POST /api/v1/grupos`
+
+**Body:**
+```json
+{
+  "nombre_grupo": "Grupo A",
+  "semestre": "2024-1",
+  "id_materia": 1
+}
+```
+
+**Respuesta `201`:** Grupo creado (misma forma que `GET /:id`, con `alumnos: []`).
+
+- **Errores:** `404` materia no encontrada, `409` grupo duplicado (mismo nombre + materia + semestre)
+
+#### `PUT /api/v1/grupos/:id`
+
+**Body:**
+```json
+{
+  "nombre_grupo": "Grupo B",
+  "semestre": "2024-2",
+  "id_materia": 2
+}
+```
+
+**Respuesta `200`:** Grupo actualizado.
+
+- **Errores:** `404` grupo o materia no encontrados, `409` combinación duplicada
+
+#### `POST /api/v1/grupos/:id/alumnos`
+
+**Body:**
+```json
+{
+  "id_alumno": 5
+}
+```
+
+**Respuesta `200`:** Grupo completo con la lista de alumnos actualizada.
+
+- **Errores:** `404` grupo o alumno no encontrado, `409` alumno ya inscrito
+
+#### `DELETE /api/v1/grupos/:id/alumnos/:id_alumno`
+
+**Respuesta `200`:** Sin cuerpo.
+
+- **Errores:** `404` — Grupo no encontrado o alumno no inscrito en ese grupo
+
+#### `DELETE /api/v1/grupos/:id`
+
+Soft delete (`activo = 0`).
+
+**Respuesta `200`:** Sin cuerpo.
+
+- **Errores:** `404` — Grupo no encontrado
+
+---
+
+### Equipos
+
+Base: `/api/v1/equipos`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista equipos existentes |
+| `POST` | `/` | `ALUMNO` | Crea equipo con integrantes |
+
+#### `GET /api/v1/equipos`
+
+**Query params:**
+
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| `id_grupo` | integer | Filtra equipos por grupo |
+
+#### `POST /api/v1/equipos`
+
+El alumno creador queda registrado automáticamente como líder del equipo y no es necesario incluirlo en `id_alumnos`.
+
+**Body:**
 ```json
 {
   "id_grupo": 1,
@@ -437,38 +703,138 @@ Endpoints disponibles bajo `/api/v1/equipos`. Requieren JWT.
 }
 ```
 
-> El alumno creador queda registrado automáticamente como líder del equipo.
-> No es necesario incluir al creador en `id_alumnos`, se agrega solo.
-
-### Parámetros de filtro (GET /equipos)
-
-| Parámetro | Tipo | Descripción |
-|---|---|---|
-| `id_grupo` | integer | Filtrar equipos por grupo |
-
-### Validaciones aplicadas
-
+**Validaciones:**
 - El grupo debe existir
 - El nombre del equipo no puede repetirse dentro del mismo grupo
 - El alumno creador debe existir
 - Todos los alumnos en `id_alumnos` deben existir
 - `nombre_equipo` debe tener entre 3 y 100 caracteres
 
-### Archivos involucrados
-src/
-├── services/equipos.service.js       ← lógica y consultas a BD
-├── controllers/equipos.controller.js ← manejo de request/response
-└── routes/equipos.routes.js          ← definición de rutas y permisos
+---
+
+### Evaluaciones
+
+Base: `/api/v1/evaluaciones`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `POST` | `/` | `ALUMNO` | Registra evaluación de una exposición |
+
+#### `POST /api/v1/evaluaciones`
+
+Registra la evaluación de un alumno sobre una exposición, calificando cada criterio de la rúbrica asociada. La `calificacion_total` es calculada automáticamente por el trigger `trg_recalcular_total` como promedio ponderado de los criterios.
+
+**Body:**
+```json
+{
+  "id_exposicion": 3,
+  "id_alumno_evaluador": 1,
+  "detalles": [
+    { "id_criterio": 1, "calificacion": 8.5 },
+    { "id_criterio": 2, "calificacion": 9.0 },
+    { "id_criterio": 3, "calificacion": 7.5 }
+  ]
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `id_exposicion` | Sí | Debe existir y estar activa |
+| `id_alumno_evaluador` | Sí | Debe existir y estar activo |
+| `detalles` | Sí | Array con todos los criterios de la rúbrica de la exposición |
+| `detalles[].id_criterio` | Sí | Debe pertenecer a la rúbrica de esa exposición |
+| `detalles[].calificacion` | Sí | Valor entre `0.00` y `10.00` |
+
+**Respuesta `201`:**
+```json
+{
+  "id_evaluacion": 10,
+  "id_exposicion": 3,
+  "id_alumno_evaluador": 1,
+  "calificacion_total": 8.42,
+  "creado_en": "2026-05-12T10:00:00.000Z",
+  "detalles": [
+    { "id_criterio": 1, "nombre_criterio": "Claridad", "calificacion": 8.5 },
+    { "id_criterio": 2, "nombre_criterio": "Contenido", "calificacion": 9.0 },
+    { "id_criterio": 3, "nombre_criterio": "Presentación", "calificacion": 7.5 }
+  ]
+}
+```
+
+**Errores:**
+- `400` — Faltan criterios, criterios ajenos a la rúbrica, o criterios repetidos
+- `404` — Exposición o alumno no encontrado
+- `409` — El alumno ya evaluó esa exposición
+
+---
+
+### Health Check
+
+#### `GET /api/v1/health`
+
+No requiere autenticación.
+
+**Respuesta `200`:**
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-05-12T10:00:00.000Z"
+}
+```
+
+---
+
+## Roles del sistema
+
+| Rol | Permisos |
+|-----|----------|
+| `ADMIN` | Acceso total: lectura, escritura y eliminación en todos los recursos |
+| `DOCENTE` | Lectura y escritura en alumnos, materias y grupos; sin permiso de eliminar |
+| `ALUMNO` | Solo puede registrar evaluaciones de exposiciones |
+
+> Los usuarios con rol `ALUMNO` tienen un registro vinculado en la tabla `alumnos` via `id_alumno`. Su `username` es la matrícula en minúsculas.
+
+---
+
+## Respuestas de error comunes
+
+| Código | Causa |
+|--------|-------|
+| `400` | Datos inválidos o incompletos |
+| `401` | Token JWT ausente, expirado o inválido |
+| `403` | El rol del usuario no tiene permiso para esta acción |
+| `404` | Recurso no encontrado o inactivo |
+| `409` | Conflicto — registro duplicado (matrícula, email, clave, etc.) |
+| `500` | Error interno del servidor |
+
+**Formato estándar de error:**
+```json
+{
+  "timestamp": "2026-05-12T10:00:00.000Z",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Ruta GET /api/v1/inexistente no encontrada",
+  "path": "/api/v1/inexistente"
+}
+```
+
+---
+
+## Notas de base de datos
+
+- Todos los deletes son **soft delete** (`activo = 0`); los registros no se eliminan físicamente.
+- La `calificacion_total` de las evaluaciones la recalcula automáticamente el trigger `trg_recalcular_total` como promedio ponderado de `evaluacion_detalles × criterios.ponderacion`.
+- La combinación `(id_exposicion, id_alumno_evaluador)` es única: un alumno solo puede evaluar una exposición una vez.
 
 ---
 
 ## Estrategia de ramas y commits
 
-### Ramas
+### Estructura de ramas
 
 ```
-main        ← solo código listo para producción, no se toca directo
-develop     ← rama de integración, aquí se unen los features
+main        ← solo código listo para producción; no se modifica directamente
+develop     ← rama de integración; aquí se unen los features
 feature/*   ← cada funcionalidad nueva
 fix/*       ← correcciones de bugs
 release/*   ← preparación de versiones
@@ -499,15 +865,15 @@ git push origin feature/materias-crud
 ### Convención de commits
 
 ```
-feat(scope):     nueva funcionalidad
-fix(scope):      corrección de bug
-refactor(scope): mejora sin cambiar comportamiento
-docs(scope):     solo documentación
-chore(scope):    dependencias, configs, CI
-test(scope):     pruebas
+feat(scope):      nueva funcionalidad
+fix(scope):       corrección de bug
+refactor(scope):  mejora sin cambiar comportamiento
+docs(scope):      solo documentación
+chore(scope):     dependencias, configs, CI
+test(scope):      pruebas
 ```
 
-Ejemplos reales del proyecto:
+Ejemplos del proyecto:
 
 ```
 feat(auth): implementar login con JWT y bcrypt
@@ -522,489 +888,7 @@ docs(readme): agregar sección de variables de entorno
 Formato: `MAYOR.MENOR.PARCHE`
 
 | Cuándo | Ejemplo |
-|---|---|
+|--------|---------|
 | Cambio que rompe compatibilidad con el frontend | `v2.0.0` |
 | Nueva funcionalidad sin romper nada | `v1.1.0` |
 | Corrección de bug | `v1.0.1` |
-
-###mas documentacion
-
-> **Autenticación:** Todos los endpoints (excepto `/auth/login`) requieren JWT en el header:
-> `Authorization: Bearer <token>`
-
----
-
-## 🔐 Auth
-
-### `POST /api/v1/auth/login`
-Autentica un usuario y devuelve un token JWT.
-
-- **Auth requerida:** No
-- **Body:**
-  ```json
-  {
-    "username": "a2024001",
-    "password": "contraseña"
-  }
-  ```
-- **Respuesta `200`:**
-  ```json
-  {
-    "token": "<jwt_token>",
-    "tipo": "Bearer",
-    "expira_en": 3600
-  }
-  ```
-- **Errores:**
-  - `401` — Credenciales inválidas (usuario no existe o contraseña incorrecta)
-
-> **Nota:** El `username` de alumnos es su matrícula en minúsculas (ej. `a2024001`). El token incluye `sub` (id_usuario), `username` y `rol`.
-
----
-
-## 👩‍🎓 Alumnos
-
-Base: `/api/v1/alumnos`
-
-| Método | Ruta | Roles | Descripción |
-|--------|------|-------|-------------|
-| `GET` | `/` | Cualquier usuario | Lista alumnos (paginado) |
-| `GET` | `/:id` | Cualquier usuario | Obtiene alumno por ID |
-| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea alumno + usuario vinculado |
-| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza datos del alumno |
-| `DELETE` | `/:id` | `ADMIN` | Soft delete del alumno |
-
----
-
-### `GET /api/v1/alumnos`
-**Query params:**
-
-| Param | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `page` | number | `0` | Página (0-indexed) |
-| `size` | number | `10` | Registros por página |
-| `nombre` | string | `""` | Filtra por nombre, apellido o matrícula |
-
-**Respuesta `200`:**
-```json
-{
-  "page": 0,
-  "size": 10,
-  "totalElements": 42,
-  "totalPages": 5,
-  "content": [
-    {
-      "id_alumno": 1,
-      "matricula": "A2024001",
-      "nombre": "Juan",
-      "apellido_pat": "Pérez",
-      "apellido_mat": "García",
-      "email": "juan@ejemplo.com"
-    }
-  ]
-}
-```
-
----
-
-### `GET /api/v1/alumnos/:id`
-**Respuesta `200`:**
-```json
-{
-  "id_alumno": 1,
-  "matricula": "A2024001",
-  "nombre": "Juan",
-  "apellido_pat": "Pérez",
-  "apellido_mat": "García",
-  "email": "juan@ejemplo.com"
-}
-```
-- **Errores:** `404` — Alumno no encontrado o inactivo
-
----
-
-### `POST /api/v1/alumnos`
-Crea el alumno **y** su usuario del sistema en una transacción. El `username` del usuario se genera automáticamente como la matrícula en minúsculas.
-
-**Body:**
-```json
-{
-  "matricula": "A2024001",
-  "nombre": "Juan",
-  "apellido_pat": "Pérez",
-  "apellido_mat": "García",
-  "email": "juan@ejemplo.com",
-  "password": "contraseña"
-}
-```
-
-| Campo | Requerido | Descripción |
-|-------|-----------|-------------|
-| `matricula` | ✅ | Única en el sistema |
-| `nombre` | ✅ | |
-| `apellido_pat` | ✅ | |
-| `apellido_mat` | ❌ | |
-| `email` | ✅ | Único en el sistema |
-| `password` | ✅ | Se almacena con bcrypt |
-
-**Respuesta `201`:** Objeto del alumno creado (misma forma que `GET /:id`).
-
-- **Errores:** `409` — Matrícula, email o username ya existente
-
----
-
-### `PUT /api/v1/alumnos/:id`
-**Body:**
-```json
-{
-  "nombre": "Juan",
-  "apellido_pat": "Pérez",
-  "apellido_mat": "García",
-  "email": "nuevo@ejemplo.com"
-}
-```
-> La matrícula no se puede modificar.
-
-**Respuesta `200`:** Alumno actualizado.
-- **Errores:** `404` alumno no encontrado, `409` email duplicado
-
----
-
-### `DELETE /api/v1/alumnos/:id`
-Soft delete: pone `activo = 0` en `alumnos` y en su registro de `usuarios`.
-
-**Respuesta `200`:** Sin cuerpo.
-- **Errores:** `404` — Alumno no encontrado
-
----
-
-## 📖 Materias
-
-Base: `/api/v1/materias`
-
-| Método | Ruta | Roles | Descripción |
-|--------|------|-------|-------------|
-| `GET` | `/` | Cualquier usuario | Lista materias (paginado) |
-| `GET` | `/:id` | Cualquier usuario | Obtiene materia por ID |
-| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea materia |
-| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza materia |
-| `DELETE` | `/:id` | `ADMIN` | Soft delete de materia |
-
----
-
-### `GET /api/v1/materias`
-**Query params:**
-
-| Param | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `page` | number | `0` | Página (0-indexed) |
-| `size` | number | `10` | Registros por página |
-| `nombre` | string | `""` | Filtra por nombre de materia |
-
-**Respuesta `200`:**
-```json
-{
-  "page": 0,
-  "size": 10,
-  "totalElements": 7,
-  "totalPages": 1,
-  "content": [
-    {
-      "id_materia": 1,
-      "clave_materia": "MAT101",
-      "nombre_materia": "Matemáticas Discretas"
-    }
-  ]
-}
-```
-
----
-
-### `GET /api/v1/materias/:id`
-**Respuesta `200`:**
-```json
-{
-  "id_materia": 1,
-  "clave_materia": "MAT101",
-  "nombre_materia": "Matemáticas Discretas"
-}
-```
-- **Errores:** `404` — Materia no encontrada o inactiva
-
----
-
-### `POST /api/v1/materias`
-**Body:**
-```json
-{
-  "clave_materia": "MAT101",
-  "nombre_materia": "Matemáticas Discretas"
-}
-```
-
-**Respuesta `201`:** Materia creada.
-- **Errores:** `409` — Clave o nombre ya existente
-
----
-
-### `PUT /api/v1/materias/:id`
-**Body:**
-```json
-{
-  "clave_materia": "MAT101",
-  "nombre_materia": "Matemáticas Discretas"
-}
-```
-**Respuesta `200`:** Materia actualizada.
-- **Errores:** `404` no encontrada, `409` clave o nombre duplicado
-
----
-
-### `DELETE /api/v1/materias/:id`
-Soft delete (`activo = 0`).
-
-**Respuesta `200`:** Sin cuerpo.
-- **Errores:** `404` — Materia no encontrada
-
----
-
-## 👥 Grupos
-
-Base: `/api/v1/grupos`
-
-| Método | Ruta | Roles | Descripción |
-|--------|------|-------|-------------|
-| `GET` | `/` | Cualquier usuario | Lista grupos (paginado) |
-| `GET` | `/:id` | Cualquier usuario | Obtiene grupo con alumnos inscritos |
-| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea grupo |
-| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza grupo |
-| `POST` | `/:id/alumnos` | `ADMIN`, `DOCENTE` | Inscribe alumno al grupo |
-| `DELETE` | `/:id/alumnos/:id_alumno` | `ADMIN`, `DOCENTE` | Quita alumno del grupo |
-| `DELETE` | `/:id` | `ADMIN` | Soft delete del grupo |
-
----
-
-### `GET /api/v1/grupos`
-**Query params:**
-
-| Param | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `page` | number | `0` | Página (0-indexed) |
-| `size` | number | `10` | Registros por página |
-| `nombre` | string | `""` | Filtra por nombre de grupo |
-
-**Respuesta `200`:**
-```json
-{
-  "page": 0,
-  "size": 10,
-  "totalElements": 3,
-  "totalPages": 1,
-  "content": [
-    {
-      "id_grupo": 1,
-      "nombre_grupo": "Grupo A",
-      "semestre": "2024-1",
-      "id_materia": 1,
-      "nombre_materia": "Matemáticas Discretas"
-    }
-  ]
-}
-```
-
----
-
-### `GET /api/v1/grupos/:id`
-Incluye el listado de alumnos inscritos en el grupo.
-
-**Respuesta `200`:**
-```json
-{
-  "id_grupo": 1,
-  "nombre_grupo": "Grupo A",
-  "semestre": "2024-1",
-  "id_materia": 1,
-  "nombre_materia": "Matemáticas Discretas",
-  "alumnos": [
-    {
-      "id_alumno": 1,
-      "matricula": "A2024001",
-      "nombre": "Juan",
-      "apellido_pat": "Pérez",
-      "email": "juan@ejemplo.com",
-      "fecha_inscripcion": "2024-01-15"
-    }
-  ]
-}
-```
-- **Errores:** `404` — Grupo no encontrado o inactivo
-
----
-
-### `POST /api/v1/grupos`
-**Body:**
-```json
-{
-  "nombre_grupo": "Grupo A",
-  "semestre": "2024-1",
-  "id_materia": 1
-}
-```
-
-**Respuesta `201`:** Grupo creado (misma forma que `GET /:id`, con `alumnos: []`).
-- **Errores:** `404` materia no encontrada, `409` grupo duplicado (mismo nombre + materia + semestre)
-
----
-
-### `PUT /api/v1/grupos/:id`
-**Body:**
-```json
-{
-  "nombre_grupo": "Grupo B",
-  "semestre": "2024-2",
-  "id_materia": 2
-}
-```
-**Respuesta `200`:** Grupo actualizado.
-- **Errores:** `404` grupo o materia no encontrados, `409` combinación duplicada
-
----
-
-### `POST /api/v1/grupos/:id/alumnos`
-**Body:**
-```json
-{
-  "id_alumno": 5
-}
-```
-**Respuesta `200`:** Grupo completo con la lista de alumnos actualizada.
-- **Errores:** `404` grupo o alumno no encontrado, `409` alumno ya inscrito
-
----
-
-### `DELETE /api/v1/grupos/:id/alumnos/:id_alumno`
-**Respuesta `200`:** Sin cuerpo.
-- **Errores:** `404` — Grupo no encontrado o alumno no inscrito en ese grupo
-
----
-
-### `DELETE /api/v1/grupos/:id`
-Soft delete (`activo = 0`).
-
-**Respuesta `200`:** Sin cuerpo.
-- **Errores:** `404` — Grupo no encontrado
-
----
-
-## 📝 Evaluaciones
-
-Base: `/api/v1/evaluaciones`
-
-| Método | Ruta | Roles | Descripción |
-|--------|------|-------|-------------|
-| `POST` | `/` | `ALUMNO` | Registra evaluación de una exposición |
-
----
-
-### `POST /api/v1/evaluaciones`
-Registra la evaluación de un alumno sobre una exposición, calificando cada criterio de la rúbrica asociada. La `calificacion_total` es calculada automáticamente por un trigger en la base de datos como promedio ponderado de los criterios.
-
-**Body:**
-```json
-{
-  "id_exposicion": 3,
-  "id_alumno_evaluador": 1,
-  "detalles": [
-    { "id_criterio": 1, "calificacion": 8.5 },
-    { "id_criterio": 2, "calificacion": 9.0 },
-    { "id_criterio": 3, "calificacion": 7.5 }
-  ]
-}
-```
-
-| Campo | Requerido | Descripción |
-|-------|-----------|-------------|
-| `id_exposicion` | ✅ | Debe existir y estar activa |
-| `id_alumno_evaluador` | ✅ | Debe existir y estar activo |
-| `detalles` | ✅ | Array con **todos** los criterios de la rúbrica de la exposición |
-| `detalles[].id_criterio` | ✅ | Debe pertenecer a la rúbrica de esa exposición |
-| `detalles[].calificacion` | ✅ | Valor entre `0.00` y `10.00` |
-
-**Respuesta `201`:**
-```json
-{
-  "id_evaluacion": 10,
-  "id_exposicion": 3,
-  "id_alumno_evaluador": 1,
-  "calificacion_total": 8.42,
-  "creado_en": "2026-05-12T10:00:00.000Z",
-  "detalles": [
-    { "id_criterio": 1, "nombre_criterio": "Claridad", "calificacion": 8.5 },
-    { "id_criterio": 2, "nombre_criterio": "Contenido", "calificacion": 9.0 },
-    { "id_criterio": 3, "nombre_criterio": "Presentación", "calificacion": 7.5 }
-  ]
-}
-```
-
-- **Errores:**
-  - `400` — Faltan criterios, criterios ajenos a la rúbrica, o criterios repetidos
-  - `404` — Exposición o alumno no encontrado
-  - `409` — El alumno ya evaluó esa exposición
-
----
-
-## 🏥 Health Check
-
-### `GET /api/v1/health`
-- **Auth requerida:** No
-- **Respuesta `200`:**
-  ```json
-  {
-    "status": "ok",
-    "timestamp": "2026-05-12T10:00:00.000Z"
-  }
-  ```
-
----
-
-## ❌ Respuestas de error comunes
-
-| Código | Causa |
-|--------|-------|
-| `400` | Datos inválidos o incompletos (ej. criterios faltantes en evaluación) |
-| `401` | Token JWT ausente, expirado o inválido |
-| `403` | El rol del usuario no tiene permiso para esta acción |
-| `404` | Recurso no encontrado o inactivo |
-| `409` | Conflicto — registro duplicado (matrícula, email, clave, etc.) |
-| `500` | Error interno del servidor |
-
-**Formato `404` de ruta no encontrada:**
-```json
-{
-  "timestamp": "2026-05-12T10:00:00.000Z",
-  "status": 404,
-  "error": "Not Found",
-  "message": "Ruta GET /api/v1/inexistente no encontrada",
-  "path": "/api/v1/inexistente"
-}
-```
-
----
-
-## 🔑 Roles del sistema
-
-| Rol | Permisos |
-|-----|----------|
-| `ADMIN` | Acceso total: lectura, escritura y eliminación en todos los recursos |
-| `DOCENTE` | Lectura y escritura en alumnos, materias y grupos; sin eliminar |
-| `ALUMNO` | Solo puede registrar evaluaciones de exposiciones |
-
-> Los usuarios con rol `ALUMNO` tienen un registro vinculado en la tabla `alumnos` via `id_alumno`. Su `username` es la matrícula en minúsculas.
-
----
-
-## 🗄️ Notas de base de datos
-
-- Todos los deletes son **soft delete** (`activo = 0`), los registros no se borran físicamente.
-- La `calificacion_total` de las evaluaciones la recalcula automáticamente el trigger `trg_recalcular_total` como promedio ponderado de `evaluacion_detalles × criterios.ponderacion`.
-- La combinación `(id_exposicion, id_alumno_evaluador)` es única: un alumno solo puede evaluar una exposición una vez.
