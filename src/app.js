@@ -28,6 +28,10 @@ app.use(`${BASE}/materias`, materiasRoutes);
 const evaluacionesRoutes = require('./routes/evaluaciones.routes');
 app.use(`${BASE}/evaluaciones`, evaluacionesRoutes);
 
+
+const equiposRoutes = require('./routes/equipos.routes');
+app.use(`${BASE}/equipos`, equiposRoutes);
+
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
