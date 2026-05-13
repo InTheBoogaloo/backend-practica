@@ -22,8 +22,6 @@ const BASE = '/api/v1';
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/v1/evaluaciones', require('./routes/evaluaciones.routes'))
-
 // ─── Rutas públicas (sin JWT) ─────────────────────────────────
 app.use(`${BASE}/auth`, authRoutes);
 
