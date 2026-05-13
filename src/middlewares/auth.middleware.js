@@ -19,6 +19,8 @@ function verifyToken(req, res, next) {
 
   const token = authHeader.split(' ')[1];
 
+
+
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = payload; // { sub, username, rol }
@@ -52,5 +54,22 @@ function requireRol(...roles) {
     next();
   };
 }
+function requireRol(...roles) {
+  return (req, res, next) => {
+    console.log('req.user:', req.user);
+    console.log('roles requeridos:', roles);
+    if (!req.user || !roles.includes(req.user.rol)) {
+      return res.status(403).json({
+        timestamp: new Date().toISOString(),
+        status:    403,
+        error:     'Forbidden',
+        message:   `Acceso restringido a: ${roles.join(', ')}`,
+        path:      req.originalUrl,
+      });
+    }
+    next();
+  };
+}
+
 
 module.exports = { verifyToken, requireRol };
