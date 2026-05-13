@@ -23,7 +23,12 @@ app.use(`${BASE}/auth`, authRoutes);
 app.use(verifyToken);
 
 const materiasRoutes = require('./routes/materias.routes');
+const alumnosRoutes  = require('./routes/alumnos.routes');
+const gruposRoutes   = require('./routes/grupos.routes');
+
 app.use(`${BASE}/materias`, materiasRoutes);
+app.use(`${BASE}/alumnos`,  alumnosRoutes);
+app.use(`${BASE}/grupos`,   gruposRoutes);
 
 const evaluacionesRoutes = require('./routes/evaluaciones.routes');
 app.use(`${BASE}/evaluaciones`, evaluacionesRoutes);
