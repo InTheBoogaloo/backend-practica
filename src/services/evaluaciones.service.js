@@ -188,16 +188,11 @@ async function registrar({
 async function obtenerPorId(id_evaluacion) {
 
   const evals = await db.query(
-    `SELECT
-        id_evaluacion,
-        id_exposicion,
-        id_alumno_evaluador,
-        calificacion_total,
-        creado_en
-     FROM evaluaciones
-     WHERE id_evaluacion = $1`,
-    [id_evaluacion]
-  );
+  `SELECT id_evaluacion, id_exposicion, id_alumno_evaluador,
+          calificacion_total, calificacion_total AS calificacion_final, creado_en
+   FROM evaluaciones WHERE id_evaluacion = $1`,
+  [id_evaluacion]
+);
 
   if (evals.rows.length === 0) {
     const err = new Error(
@@ -225,7 +220,18 @@ async function obtenerPorId(id_evaluacion) {
   };
 }
 
+async function listar() {
+  const result = await db.query(
+    `SELECT id_evaluacion, id_exposicion, id_alumno_evaluador,
+            calificacion_total, calificacion_total AS calificacion_final, creado_en
+     FROM evaluaciones
+     ORDER BY id_evaluacion DESC`
+  );
+  return result.rows;
+}
+
 module.exports = {
   registrar,
-  obtenerPorId
+  obtenerPorId,
+  listar
 };
