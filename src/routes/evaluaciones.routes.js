@@ -4,7 +4,7 @@ const { requireRol } = require('../middlewares/auth.middleware');
 
 const router = Router();
 
-// Solo ALUMNO puede registrar evaluaciones
-router.post('/', requireRol('ALUMNO'), ctrl.registrar);
+router.get('/',  ctrl.listar);
+router.post('/', requireRol('ADMIN', 'DOCENTE', 'ALUMNO'), ctrl.registrar);
 
 module.exports = router;
