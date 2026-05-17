@@ -9,6 +9,7 @@ const gruposRoutes       = require('./routes/grupos.routes');
 const evaluacionesRoutes = require('./routes/evaluaciones.routes');
 const equiposRoutes      = require('./routes/equipos.routes');
 const exposicionesRoutes = require('./routes/exposiciones.routes');
+const criteriosRoutes = require('./routes/criterios.routes');
 
 const errorHandler    = require('./middlewares/errorHandler');
 const { verifyToken } = require('./middlewares/auth.middleware');
@@ -34,6 +35,7 @@ app.use(`${BASE}/grupos`,       gruposRoutes);
 app.use(`${BASE}/evaluaciones`, evaluacionesRoutes);
 app.use(`${BASE}/equipos`,      equiposRoutes);
 app.use(`${BASE}/exposiciones`, exposicionesRoutes);
+app.use(`${BASE}/criterios`, criteriosRoutes);
 
 // ─── Health check ─────────────────────────────────────────────
 app.get(`${BASE}/health`, (req, res) => {
