@@ -64,4 +64,11 @@ async function registrar(req, res, next) {
   }
 }
 
-module.exports = { registrar };
+async function listar(req, res, next) {
+  try {
+    const evaluaciones = await evaluacionesService.listar();
+    res.json(evaluaciones);
+  } catch (err) { next(err); }
+}
+
+module.exports = { registrar, listar};
