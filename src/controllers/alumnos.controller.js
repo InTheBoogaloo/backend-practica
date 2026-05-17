@@ -38,13 +38,15 @@ function validarInput({ nombre, apellido_pat, email, matricula, password }, esCr
 // GET /alumnos
 async function listar(req, res, next) {
   try {
-    const { page = 0, size = 10, nombre = '' } = req.query;
+    const { page = 0, size = 10, nombre = '', search } = req.query;
+    const filtro = search || nombre; // search tiene prioridad
+
     if (isNaN(page) || parseInt(page) < 0)
       return errorResponse(res, 400, 'page debe ser >= 0', req.originalUrl);
     if (isNaN(size) || parseInt(size) < 1 || parseInt(size) > 100)
       return errorResponse(res, 400, 'size debe estar entre 1 y 100', req.originalUrl);
 
-    return res.status(200).json(await alumnosService.listar({ page, size, nombre }));
+    return res.status(200).json(await alumnosService.listar({ page, size, nombre: filtro }));
   } catch (err) { next(err); }
 }
 
@@ -72,11 +74,11 @@ async function crear(req, res, next) {
       return errorResponse(res, 400, errores.join(' | '), req.originalUrl);
 
     const alumno = await alumnosService.crear({
-      matricula:   matricula.trim().toUpperCase(),
-      nombre:      nombre.trim(),
+      matricula:    matricula.trim().toUpperCase(),
+      nombre:       nombre.trim(),
       apellido_pat: apellido_pat.trim(),
       apellido_mat: apellido_mat ? apellido_mat.trim() : null,
-      email:       email.trim().toLowerCase(),
+      email:        email.trim().toLowerCase(),
       password,
     });
 
@@ -87,11 +89,13 @@ async function crear(req, res, next) {
   }
 }
 
-// PUT /alumnos/:id
+// PUT /alumnos/:id  — acepta apellido_pat o apellido como alias
 async function actualizar(req, res, next) {
   try {
     const { id } = req.params;
-    const { nombre, apellido_pat, apellido_mat, email } = req.body;
+    const { nombre, email } = req.body;
+    const apellido_pat = req.body.apellido_pat || req.body.apellido;
+    const apellido_mat = req.body.apellido_mat || null;
 
     if (isNaN(id) || parseInt(id) <= 0)
       return errorResponse(res, 400, 'El id debe ser un entero positivo', req.originalUrl);
@@ -101,10 +105,10 @@ async function actualizar(req, res, next) {
       return errorResponse(res, 400, errores.join(' | '), req.originalUrl);
 
     return res.status(200).json(await alumnosService.actualizar(parseInt(id), {
-      nombre:      nombre.trim(),
+      nombre:       nombre.trim(),
       apellido_pat: apellido_pat.trim(),
       apellido_mat: apellido_mat ? apellido_mat.trim() : null,
-      email:       email.trim().toLowerCase(),
+      email:        email.trim().toLowerCase(),
     }));
   } catch (err) {
     if (err.status === 404) return errorResponse(res, 404, err.message, req.originalUrl);
