@@ -393,6 +393,16 @@ Base: `/api/v1/alumnos`
   "email": "juan@ejemplo.com"
 }
 ```
+#### `GET /api/v1/alumnos`
+
+**Query params:**
+
+| Param | Tipo | Default | Descripción |
+|-------|------|---------|-------------|
+| `page` | number | `0` | Página (0-indexed) |
+| `size` | number | `10` | Registros por página |
+| `nombre` | string | `""` | Filtro por nombre, apellido o matrícula |
+| `search` | string | `""` | Alias de `nombre` |
 
 - **Errores:** `404` — Alumno no encontrado o inactivo
 
@@ -427,12 +437,11 @@ Crea el alumno y su usuario del sistema en una transacción. El `username` se ge
 
 #### `PUT /api/v1/alumnos/:id`
 
-**Body:**
+**Body** — acepta `apellido_pat` o `apellido` como alias:
 ```json
 {
   "nombre": "Juan",
-  "apellido_pat": "Pérez",
-  "apellido_mat": "García",
+  "apellido": "García",
   "email": "nuevo@ejemplo.com"
 }
 ```
@@ -551,11 +560,11 @@ Base: `/api/v1/grupos`
 |--------|------|-------|-------------|
 | `GET` | `/` | Cualquier usuario | Lista grupos (paginado) |
 | `GET` | `/:id` | Cualquier usuario | Obtiene grupo con alumnos inscritos |
-| `POST` | `/` | `ADMIN`, `DOCENTE` | Crea grupo |
-| `PUT` | `/:id` | `ADMIN`, `DOCENTE` | Actualiza grupo |
-| `POST` | `/:id/alumnos` | `ADMIN`, `DOCENTE` | Inscribe alumno al grupo |
-| `DELETE` | `/:id/alumnos/:id_alumno` | `ADMIN`, `DOCENTE` | Quita alumno del grupo |
-| `DELETE` | `/:id` | `ADMIN` | Soft delete del grupo |
+| `POST` | `/` | ADMIN, DOCENTE | Crea grupo |
+| `PUT` | `/:id` | ADMIN, DOCENTE | Actualiza grupo |
+| `POST` | `/:id/alumnos` | ADMIN, DOCENTE | Inscribe alumno al grupo |
+| `DELETE` | `/:id/alumnos/:id_alumno` | ADMIN, DOCENTE | Quita alumno del grupo |
+| `DELETE` | `/:id` | ADMIN, DOCENTE | Soft delete del grupo |
 
 #### `GET /api/v1/grupos`
 
@@ -679,7 +688,10 @@ Base: `/api/v1/equipos`
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
 | `GET` | `/` | Cualquier usuario | Lista equipos existentes |
-| `POST` | `/` | `ALUMNO` | Crea equipo con integrantes |
+| `GET` | `/:id` | Cualquier usuario | Obtiene equipo por ID |
+| `POST` | `/` | ADMIN, DOCENTE, ALUMNO | Crea equipo con integrantes |
+| `PUT` | `/:id` | ADMIN, DOCENTE | Actualiza nombre e id_grupo |
+| `DELETE` | `/:id` | ADMIN | Soft delete |
 
 #### `GET /api/v1/equipos`
 
@@ -689,11 +701,28 @@ Base: `/api/v1/equipos`
 |-----------|------|-------------|
 | `id_grupo` | integer | Filtra equipos por grupo |
 
+#### `GET /api/v1/equipos/:id`
+
+**Respuesta `200`:**
+```json
+{
+  "id_equipo": 1,
+  "nombre_equipo": "Equipo Alpha",
+  "id_grupo": 1,
+  "nombre_grupo": "6A",
+  "integrantes": [
+    { "id_alumno": 1, "matricula": "A2024001", "nombre": "Juan", "apellido_pat": "García", "es_lider": true },
+    { "id_alumno": 2, "matricula": "A2024002", "nombre": "María", "apellido_pat": "López", "es_lider": false }
+  ]
+}
+```
+
 #### `POST /api/v1/equipos`
 
 El alumno creador queda registrado automáticamente como líder del equipo y no es necesario incluirlo en `id_alumnos`.
+El campo `id_alumno_creador` es opcional. Si no se envía, el equipo se crea sin integrantes iniciales.
 
-**Body:**
+**Body con creador:**
 ```json
 {
   "id_grupo": 1,
@@ -702,6 +731,28 @@ El alumno creador queda registrado automáticamente como líder del equipo y no 
   "id_alumnos": [2, 3]
 }
 ```
+
+**Body sin creador (ADMIN o DOCENTE):**
+```json
+{
+  "id_grupo": 1,
+  "nombre_equipo": "Equipo Beta"
+}
+```
+
+#### `PUT /api/v1/equipos/:id`
+
+**Body:**
+```json
+{
+  "nombre_equipo": "Equipo Alpha Actualizado",
+  "id_grupo": 1
+}
+```
+
+**Respuesta `200`:** Equipo actualizado con integrantes.
+
+- **Errores:** `404` equipo o grupo no encontrado, `409` nombre duplicado en el grupo
 
 **Validaciones:**
 - El grupo debe existir
@@ -714,57 +765,144 @@ El alumno creador queda registrado automáticamente como líder del equipo y no 
 
 ### Evaluaciones
 
+### Evaluaciones
+
 Base: `/api/v1/evaluaciones`
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
-| `POST` | `/` | `ALUMNO` | Registra evaluación de una exposición |
+| `GET` | `/` | Cualquier usuario | Lista todas las evaluaciones |
+| `POST` | `/` | ADMIN, DOCENTE, ALUMNO | Registra evaluación con rúbrica |
+
+#### `GET /api/v1/evaluaciones`
+
+**Respuesta `200`:**
+```json
+[
+  {
+    "id_evaluacion": 1,
+    "id_exposicion": 1,
+    "id_alumno_evaluador": 1,
+    "calificacion_total": 8.50,
+    "calificacion_final": 8.50,
+    "creado_en": "2025-06-10T10:00:00.000Z"
+  }
+]
+```
 
 #### `POST /api/v1/evaluaciones`
 
-Registra la evaluación de un alumno sobre una exposición, calificando cada criterio de la rúbrica asociada. La `calificacion_total` es calculada automáticamente por el trigger `trg_recalcular_total` como promedio ponderado de los criterios.
+La `calificacion_total` y `calificacion_final` las calcula automáticamente el trigger de la BD.
 
 **Body:**
 ```json
 {
-  "id_exposicion": 3,
+  "id_exposicion": 1,
   "id_alumno_evaluador": 1,
   "detalles": [
-    { "id_criterio": 1, "calificacion": 8.5 },
-    { "id_criterio": 2, "calificacion": 9.0 },
-    { "id_criterio": 3, "calificacion": 7.5 }
+    { "id_criterio": 1, "calificacion": 9.0 },
+    { "id_criterio": 2, "calificacion": 8.5 },
+    { "id_criterio": 3, "calificacion": 8.0 }
   ]
 }
 ```
 
-| Campo | Requerido | Descripción |
-|-------|-----------|-------------|
-| `id_exposicion` | Sí | Debe existir y estar activa |
-| `id_alumno_evaluador` | Sí | Debe existir y estar activo |
-| `detalles` | Sí | Array con todos los criterios de la rúbrica de la exposición |
-| `detalles[].id_criterio` | Sí | Debe pertenecer a la rúbrica de esa exposición |
-| `detalles[].calificacion` | Sí | Valor entre `0.00` y `10.00` |
-
 **Respuesta `201`:**
 ```json
 {
-  "id_evaluacion": 10,
-  "id_exposicion": 3,
+  "id_evaluacion": 1,
+  "id_exposicion": 1,
   "id_alumno_evaluador": 1,
-  "calificacion_total": 8.42,
-  "creado_en": "2026-05-12T10:00:00.000Z",
+  "calificacion_total": 8.50,
+  "calificacion_final": 8.50,
+  "creado_en": "2025-06-10T10:00:00.000Z",
   "detalles": [
-    { "id_criterio": 1, "nombre_criterio": "Claridad", "calificacion": 8.5 },
-    { "id_criterio": 2, "nombre_criterio": "Contenido", "calificacion": 9.0 },
-    { "id_criterio": 3, "nombre_criterio": "Presentación", "calificacion": 7.5 }
+    { "id_criterio": 1, "nombre_criterio": "Dominio del tema", "calificacion": 9.0 },
+    { "id_criterio": 2, "nombre_criterio": "Claridad", "calificacion": 8.5 },
+    { "id_criterio": 3, "nombre_criterio": "Material de apoyo", "calificacion": 8.0 }
   ]
 }
 ```
 
 **Errores:**
-- `400` — Faltan criterios, criterios ajenos a la rúbrica, o criterios repetidos
+- `400` — Faltan criterios, criterios ajenos a la rúbrica o repetidos
 - `404` — Exposición o alumno no encontrado
 - `409` — El alumno ya evaluó esa exposición
+
+---
+
+### Exposiciones
+
+Base: `/api/v1/exposiciones`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista exposiciones paginado |
+| `GET` | `/:id` | Cualquier usuario | Obtiene exposición con criterios e integrantes |
+| `POST` | `/` | ADMIN, DOCENTE | Crea exposición |
+| `PUT` | `/:id` | ADMIN, DOCENTE | Actualiza exposición |
+| `DELETE` | `/:id` | ADMIN | Soft delete |
+
+#### `GET /api/v1/exposiciones`
+
+**Query params:**
+
+| Param | Tipo | Descripción |
+|-------|------|-------------|
+| `page` | number | Página (default 0) |
+| `size` | number | Tamaño (default 10) |
+| `titulo` | string | Filtro por título |
+| `id_equipo` | integer | Filtro por equipo |
+
+#### `POST /api/v1/exposiciones`
+
+**Body:**
+```json
+{
+  "id_equipo": 1,
+  "id_rubrica": 1,
+  "titulo": "APIs REST con Node.js",
+  "fecha_exposicion": "2025-06-10T10:00:00",
+  "descripcion": "Exposición sobre desarrollo de APIs"
+}
+```
+
+**Respuesta `201`:** Exposición creada con integrantes del equipo y criterios de la rúbrica.
+
+- **Errores:** `404` equipo o rúbrica no encontrada, `409` título duplicado para el mismo equipo
+
+---
+
+### Criterios
+
+Base: `/api/v1/criterios`
+
+| Método | Ruta | Roles | Descripción |
+|--------|------|-------|-------------|
+| `GET` | `/` | Cualquier usuario | Lista criterios de una exposición |
+
+#### `GET /api/v1/criterios`
+
+Dado el ID de una exposición, retorna todos los criterios activos de su rúbrica.
+
+**Query params:**
+
+| Param | Requerido | Descripción |
+|-------|-----------|-------------|
+| `id_exposicion` | Sí | ID de la exposición |
+
+**Ejemplo:** `GET /api/v1/criterios?id_exposicion=1`
+
+**Respuesta `200`:**
+```json
+[
+  { "id_criterio": 1, "nombre_criterio": "Dominio del tema", "descripcion": "Conocimiento al exponer", "ponderacion": "1.00" },
+  { "id_criterio": 2, "nombre_criterio": "Claridad", "descripcion": "Organización y fluidez", "ponderacion": "1.00" },
+  { "id_criterio": 3, "nombre_criterio": "Material de apoyo", "descripcion": "Calidad de diapositivas", "ponderacion": "1.00" }
+]
+```
+
+- **Errores:** `400` falta id_exposicion, `404` exposición no encontrada
 
 ---
 
